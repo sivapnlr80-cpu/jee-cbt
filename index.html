@@ -144,7 +144,7 @@ table.sum td,table.sum th{border:1px solid #ccc;padding:5px 8px;text-align:cente
 </div></div>
 
 <script>
-var CFG={owner:'sivapnlr80-cpu',repo:'jee-results',start:'2026-11-16'};
+var CFG={owner:'sivapnlr80-cpu',repo:'jee-results',start:'2026-11-17',first:3};
 var LETTERS=['A','B','C','D'];
 var P=null,Q=[],st=[],cur=0,tick=null,submitted=false,result=null,endAt=0,qStart=0;
 function $(i){return document.getElementById(i)}
@@ -152,8 +152,8 @@ function show(id){document.querySelectorAll('.screen').forEach(function(s){s.cla
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function ls(k,v){try{if(v===undefined){var x=localStorage.getItem(k);return x?JSON.parse(x):null}if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
 function istDate(){return new Date(Date.now()+5.5*3600e3).toISOString().slice(0,10)}
-function dayOf(d){return Math.round((Date.parse(d)-Date.parse(CFG.start))/864e5)+1}
-function dateOf(n){return new Date(Date.parse(CFG.start)+(n-1)*864e5).toISOString().slice(0,10)}
+function dayOf(d){return Math.max(CFG.first,Math.round((Date.parse(d)-Date.parse(CFG.start))/864e5)+1)}
+function dateOf(n){return new Date(Date.parse(CFG.start)+(Math.max(n,CFG.first)-1)*864e5).toISOString().slice(0,10)}
 function cfg(){return ls('jee_cfg')||{}}
 
 function saveSetup(){
