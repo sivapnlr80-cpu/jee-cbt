@@ -193,7 +193,7 @@ function home(){
   if(ls('jee_done_'+n)){$('homeBody').innerHTML='<p class="ok"><b>ఈరోజు paper submit అయిపోయింది ✔</b></p><p>సాయంత్రం 6 గంటలకు report నాన్నకి వెళ్తుంది. రేపు ఉదయం కొత్త paper వస్తుంది.</p>';return}
   $('homeBody').innerHTML='<p>ఈరోజు paper load అవుతోంది...</p>';
   loadPaper(n).then(function(p){ready(p)}).catch(function(){
-    $('homeBody').innerHTML='<p class="warn">ఈరోజు paper ఇంకా రాలేదు (ఉదయం 6 గంటల తర్వాత వస్తుంది) లేదా internet లేదు.</p><p class="muted">ప్రతి 5 నిమిషాలకు దానంతట అదే మళ్లీ check చేస్తుంది.</p><button class="blue" onclick="home()">ఇప్పుడే మళ్లీ check చేయండి</button>';
+    $('homeBody').innerHTML='<p class="warn">ఈరోజు paper ఇంకా రాలేదు (ఉదయం 4:30 తర్వాత వస్తుంది) లేదా internet లేదు.</p><p class="muted">ప్రతి 5 నిమిషాలకు దానంతట అదే మళ్లీ check చేస్తుంది.</p><button class="blue" onclick="home()">ఇప్పుడే మళ్లీ check చేయండి</button>';
     retryT=setTimeout(home,300000);
   });
 }
