@@ -73,7 +73,7 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 </style>
 </head>
 <body>
-<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
+<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v8</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
 
 <div class="screen" id="sSetup"><div class="box">
   <h2>మొదటిసారి setup</h2>
@@ -517,7 +517,10 @@ window.addEventListener('online',function(){netInfo();flushQueue()});
 window.addEventListener('offline',netInfo);
 window.addEventListener('beforeunload',function(){if(P&&st.length&&!submitted&&$('sExam').classList.contains('on')){account();persist()}});
 setInterval(flushQueue,120000);
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js');
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(r){r.update();setInterval(function(){r.update()},600000)});
+  var reloaded=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(!reloaded&&!(P&&st.length&&!submitted&&$('sExam').classList.contains('on'))){reloaded=true;location.reload()}});
+}
 $('setName').value=cfg().name||'Teju';
 netInfo();home();
 </script>
