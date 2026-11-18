@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teju JEE CBT</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#1f4e8c">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 "Segoe UI",Arial,sans-serif;background:#eef1f5;color:#222}
+header{background:#1f4e8c;color:#fff;padding:8px 16px;display:flex;align-items:center;gap:16px}
+header b{font-size:17px}header .sp{flex:1}
+#timer{background:#fff;color:#c00;font-weight:700;padding:4px 12px;border-radius:4px;display:none}
+.screen{display:none}.screen.on{display:block}
+.box{max-width:760px;margin:28px auto;background:#fff;padding:24px 28px;border-radius:6px;box-shadow:0 1px 4px #0002}
+h2{margin-top:0;color:#1f4e8c}
+button{font:inherit;padding:7px 14px;border:1px solid #999;background:#f6f6f6;border-radius:4px;cursor:pointer;margin:3px}
+button:disabled{opacity:.45;cursor:default}
+.pri{background:#2e8b57;color:#fff;border-color:#2e8b57}.blue{background:#1f4e8c;color:#fff;border-color:#1f4e8c}
+.org{background:#e67e22;color:#fff;border-color:#e67e22}.pur{background:#6c3fa0;color:#fff;border-color:#6c3fa0}
+input[type=text],input[type=password],input[type=number]{font:inherit;padding:7px;border:1px solid #aaa;border-radius:4px;width:100%}
+label.f{display:block;margin:10px 0 3px;font-weight:600}
+.ok{color:#2e7d32}.warn{color:#c0392b}.muted{color:#666;font-size:13px}
+.wrap{display:flex;gap:10px;padding:10px;height:calc(100vh - 46px)}
+.main{flex:1;background:#fff;display:flex;flex-direction:column;border-radius:4px;min-width:0}
+.side{width:300px;background:#fff;border-radius:4px;padding:10px;overflow:auto}
+.tabs{display:flex;border-bottom:2px solid #1f4e8c}
+.tabs button{margin:0;border-radius:0;border:0;border-right:1px solid #ccc;background:#e8edf4}
+.tabs button.cur{background:#1f4e8c;color:#fff}
+.qarea{flex:1;overflow:auto;padding:14px 18px}
+.qhead{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:10px;font-weight:700}
+.qhead small{font-weight:400;color:#555}
+.qtext{white-space:pre-wrap;margin-bottom:14px;font-size:16px}
+.opt{display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid #ddd;border-radius:4px;margin:6px 0;cursor:pointer}
+.opt:hover{background:#f3f7fc}
+.num input{width:220px;font-size:18px}
+.keypad{display:grid;grid-template-columns:repeat(3,70px);gap:4px;margin-top:8px}
+.keypad button{margin:0}
+.bar{border-top:1px solid #ddd;padding:8px;display:flex;flex-wrap:wrap;align-items:center}
+.bar .sp{flex:1}
+.pal{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.p{display:inline-flex;align-items:center;justify-content:center;width:40px;height:34px;border:1px solid #999;background:#eee;border-radius:4px;cursor:pointer;font-weight:600;margin-right:6px}
+.p.na{background:#e74c3c;color:#fff;border-color:#e74c3c}
+.p.an{background:#27ae60;color:#fff;border-color:#27ae60}
+.p.mr{background:#6c3fa0;color:#fff;border-color:#6c3fa0;border-radius:50%}
+.p.am{background:#6c3fa0;color:#fff;border-color:#6c3fa0;border-radius:50%;box-shadow:inset 0 -6px 0 #27ae60}
+.p.cur{outline:3px solid #f1c40f}
+.legend span{display:inline-flex;align-items:center;margin:4px 10px 4px 0;font-size:13px}
+.counts{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:13px;margin-bottom:10px}
+table.sum{border-collapse:collapse;width:100%;margin:10px 0}
+table.sum td,table.sum th{border:1px solid #ccc;padding:5px 8px;text-align:center}
+.days{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+</style>
+</head>
+<body>
+<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
+
+<div class="screen" id="sSetup"><div class="box">
+  <h2>మొదటిసారి setup</h2>
+  <p>ఇది ఒక్కసారి మాత్రమే. నాన్న ఇచ్చిన token ఇక్కడ paste చేయండి.</p>
+  <label class="f">Student name</label><input type="text" id="setName" value="Teju">
+  <label class="f">Results token (github_pat_...)</label><input type="password" id="setTok" autocomplete="off">
+  <p id="setMsg"></p>
+  <button class="blue" onclick="saveSetup()">Save &amp; Test</button>
+</div></div>
+
+<div class="screen" id="sHome"><div class="box">
+  <h2 id="homeTitle"></h2>
+  <div id="homeBody"></div>
+  <p id="queueMsg"></p>
+  <details style="margin-top:18px"><summary class="muted">పాత papers / settings</summary>
+    <div class="days" id="oldDays"></div>
+    <p><button onclick="show('sSetup')">Settings మార్చండి</button></p>
+  </details>
+</div></div>
+
+<div class="screen" id="sInst"><div class="box">
+  <h2>Instructions</h2>
+  <p id="instMeta"></p>
+  <ol>
+    <li>Timer పైన కుడివైపు ఉంటుంది. Time అయిపోగానే paper దానంతట అదే submit అవుతుంది.</li>
+    <li>Option select చేసాక <b>Save &amp; Next</b> నొక్కితేనే answer save అవుతుంది.</li>
+    <li><b>Mark for Review</b> చేసిన question ని తర్వాత మళ్లీ చూడొచ్చు. Answer ఇచ్చి mark చేసినా ఆ answer evaluate అవుతుంది.</li>
+    <li>Numerical questions కి answer ని keypad తో టైప్ చేయాలి (integer).</li>
+    <li>Marking: సరైనదానికి +4, తప్పుకు −1, వదిలేస్తే 0.</li>
+    <li>మధ్యలో power పోయినా, app close అయినా, అప్పటివరకు ఇచ్చిన answers పోవు. మళ్లీ open చేస్తే అక్కడి నుంచే continue అవుతుంది.</li>
+    <li>Submit చేయగానే answers నాన్నకి వెళ్తాయి. సాయంత్రం 6 గంటలకు report వస్తుంది.</li>
+  </ol>
+  <div class="legend">
+    <span><span class="p">1</span>Not Visited</span>
+    <span><span class="p na">2</span>Not Answered</span>
+    <span><span class="p an">3</span>Answered</span>
+    <span><span class="p mr">4</span>Marked for Review</span>
+    <span><span class="p am">5</span>Answered &amp; Marked (evaluated)</span>
+  </div>
+  <p><label><input type="checkbox" id="agree"> I have read and understood the instructions.</label></p>
+  <button class="pri" onclick="startExam()">I am ready to begin</button>
+  <button onclick="home()">Back</button>
+</div></div>
+
+<div class="screen" id="sExam"><div class="wrap">
+  <div class="main">
+    <div class="tabs" id="tabs"></div>
+    <div class="qarea">
+      <div class="qhead"><span id="qNo"></span><small id="qType"></small></div>
+      <div class="qtext" id="qText"></div>
+      <div id="qBody"></div>
+    </div>
+    <div class="bar">
+      <button class="pri" onclick="act('saveNext')">Save &amp; Next</button>
+      <button class="org" onclick="act('saveMark')">Save &amp; Mark for Review</button>
+      <button onclick="act('clear')">Clear Response</button>
+      <button class="pur" onclick="act('markNext')">Mark for Review &amp; Next</button>
+      <span class="sp"></span>
+      <button onclick="go(cur-1)" id="bBack">&lt;&lt; Back</button>
+      <button onclick="go(cur+1)" id="bNext">Next &gt;&gt;</button>
+      <button class="blue" onclick="showSummary()">Submit</button>
+    </div>
+  </div>
+  <div class="side">
+    <div class="counts" id="counts"></div>
+    <h3 id="palTitle"></h3>
+    <div class="pal" id="pal"></div>
+  </div>
+</div></div>
+
+<div class="screen" id="sSum"><div class="box">
+  <h2>Exam Summary</h2>
+  <table class="sum" id="sumTbl"></table>
+  <p>Submit చేసాక answers మార్చలేరు. Submit చేయాలా?</p>
+  <button class="blue" onclick="submitExam(false)">Yes, Submit</button>
+  <button onclick="backToExam()">No, go back</button>
+</div></div>
+
+<div class="screen" id="sDone"><div class="box">
+  <h2 class="ok">Paper submit అయింది</h2>
+  <p id="doneMeta"></p>
+  <p id="saveMsg"></p>
+  <button onclick="downloadResult()">Answers file download (backup)</button>
+  <button class="blue" onclick="home()">Home</button>
+</div></div>
+
+<script>
+var CFG={owner:'sivapnlr80-cpu',repo:'jee-results',start:'2026-11-16'};
+var LETTERS=['A','B','C','D'];
+var P=null,Q=[],st=[],cur=0,tick=null,submitted=false,result=null,endAt=0,qStart=0;
+function $(i){return document.getElementById(i)}
+function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.toggle('on',s.id===id)});$('timer').style.display=id==='sExam'?'inline-block':'none'}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function ls(k,v){try{if(v===undefined){var x=localStorage.getItem(k);return x?JSON.parse(x):null}if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
+function istDate(){return new Date(Date.now()+5.5*3600e3).toISOString().slice(0,10)}
+function dayOf(d){return Math.round((Date.parse(d)-Date.parse(CFG.start))/864e5)+1}
+function dateOf(n){return new Date(Date.parse(CFG.start)+(n-1)*864e5).toISOString().slice(0,10)}
+function cfg(){return ls('jee_cfg')||{}}
+
+function saveSetup(){
+  var c={name:$('setName').value.trim()||'Teju',token:$('setTok').value.trim()||cfg().token||''};
+  ls('jee_cfg',c);$('setMsg').textContent='Testing...';
+  gh('GET','',null).then(function(r){
+    $('setMsg').innerHTML=r.ok?'<span class="ok">Token పనిచేస్తోంది ✔</span>':'<span class="warn">Token తప్పు (HTTP '+r.status+'). నాన్నని అడగండి.</span>';
+    if(r.ok)setTimeout(home,800);
+  }).catch(function(){$('setMsg').innerHTML='<span class="warn">Internet లేదు. Token save అయింది, తర్వాత test అవుతుంది.</span>';setTimeout(home,1200)});
+}
+function gh(method,path,body){
+  return fetch('https://api.github.com/repos/'+CFG.owner+'/'+CFG.repo+'/contents'+(path?'/'+path:''),{
+    method:method,headers:{'Authorization':'Bearer '+cfg().token,'Accept':'application/vnd.github+json'},
+    body:body?JSON.stringify(body):undefined});
+}
+function b64(s){return btoa(unescape(encodeURIComponent(s)))}
+
+function loadPaper(n){
+  return new Promise(function(res,rej){
+    window.PAPER=null;
+    var s=document.createElement('script');s.src='papers/day'+n+'.js?v='+Date.now();
+    s.onload=function(){s.remove();window.PAPER&&window.PAPER.day==n?res(window.PAPER):rej()};
+    s.onerror=function(){s.remove();rej()};
+    document.head.appendChild(s);
+  });
+}
+
+var retryT=null;
+function home(){
+  clearTimeout(retryT);
+  if(!cfg().token){show('sSetup');return}
+  flushQueue();
+  var n=dayOf(istDate());
+  $('homeTitle').textContent='Day '+n+' · '+istDate();
+  $('hInfo').textContent=cfg().name;
+  show('sHome');
+  oldDays(n);
+  if(ls('jee_done_'+n)){$('homeBody').innerHTML='<p class="ok"><b>ఈరోజు paper submit అయిపోయింది ✔</b></p><p>సాయంత్రం 6 గంటలకు report నాన్నకి వెళ్తుంది. రేపు ఉదయం కొత్త paper వస్తుంది.</p>';return}
+  $('homeBody').innerHTML='<p>ఈరోజు paper load అవుతోంది...</p>';
+  loadPaper(n).then(function(p){ready(p)}).catch(function(){
+    $('homeBody').innerHTML='<p class="warn">ఈరోజు paper ఇంకా రాలేదు (ఉదయం 6 గంటల తర్వాత వస్తుంది) లేదా internet లేదు.</p><p class="muted">ప్రతి 5 నిమిషాలకు దానంతట అదే మళ్లీ check చేస్తుంది.</p><button class="blue" onclick="home()">ఇప్పుడే మళ్లీ check చేయండి</button>';
+    retryT=setTimeout(home,300000);
+  });
+}
+function ready(p){
+  var saved=ls('jee_prog_'+p.day);
+  var nq=p.sections.reduce(function(a,s){return a+s.questions.length},0);
+  $('homeBody').innerHTML='<p><b>'+esc(p.title)+'</b></p><p>'+nq+' questions · '+p.durationMin+' నిమిషాలు · '+nq*4+' marks</p>'+
+    p.sections.map(function(s){return '<span class="muted">'+esc(s.name)+': '+s.questions.length+'</span>'}).join(' · ')+
+    '<p><button class="pri" onclick="openInst()">'+(saved?'Exam continue చేయండి':'Exam మొదలుపెట్టండి')+'</button></p>';
+  P=p;
+}
+function oldDays(n){
+  var h='';for(var i=Math.max(1,n-14);i<n;i++){h+='<button onclick="openOld('+i+')"'+(ls('jee_done_'+i)?' disabled title="submitted"':'')+'>Day '+i+'</button>'}
+  $('oldDays').innerHTML=h||'<span class="muted">ఇంకా పాత papers లేవు</span>';
+}
+function openOld(n){loadPaper(n).then(function(p){P=p;openInst()}).catch(function(){alert('Day '+n+' paper దొరకలేదు')})}
+
+function openInst(){
+  $('instMeta').textContent=P.title+' · '+P.durationMin+' నిమిషాలు';
+  var saved=ls('jee_prog_'+P.day);
+  if(saved){$('agree').checked=true;startExam();return}
+  show('sInst');
+}
+
+function build(){
+  Q=[];P.sections.forEach(function(s,si){s.questions.forEach(function(q){Q.push({sec:si,secName:s.name,type:q.type,text:q.text,options:q.options||[]})})});
+}
+function startExam(){
+  if(!$('agree').checked){alert('Instructions చదివి tick చేయండి');return}
+  build();submitted=false;
+  var saved=ls('jee_prog_'+P.day);
+  if(saved&&saved.st.length===Q.length){st=saved.st;cur=saved.cur;endAt=saved.endAt;}
+  else{st=Q.map(function(){return{ans:null,marked:false,visited:false,t:0}});cur=0;endAt=Date.now()+P.durationMin*60e3;}
+  ls('jee_start_'+P.day,ls('jee_start_'+P.day)||new Date().toISOString());
+  $('hInfo').textContent=cfg().name+' · '+P.title;
+  tabs();show('sExam');qStart=Date.now();render();
+  clearInterval(tick);
+  var f=function(){
+    var left=Math.max(0,endAt-Date.now()),m=Math.floor(left/60e3),s=Math.floor(left%60e3/1e3);
+    $('timer').textContent='Time Left: '+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    if(left<=0){clearInterval(tick);account();submitExam(true)}
+  };
+  f();tick=setInterval(f,500);
+}
+function persist(){if(P&&!submitted)ls('jee_prog_'+P.day,{st:st,cur:cur,endAt:endAt})}
+function account(){var now=Date.now();st[cur].t+=Math.round((now-qStart)/1e3);qStart=now}
+function tabs(){
+  $('tabs').innerHTML=P.sections.map(function(s,i){return '<button onclick="goSec('+i+')" id="tab'+i+'">'+esc(s.name)+'</button>'}).join('');
+}
+function goSec(i){for(var k=0;k<Q.length;k++)if(Q[k].sec===i){go(k);return}}
+function go(i){if(i<0||i>=Q.length)return;account();cur=i;render();persist()}
+function status(i){var x=st[i];if(!x.visited)return'';if(x.marked)return x.ans!==null?'am':'mr';return x.ans!==null?'an':'na'}
+function render(){
+  var q=Q[cur];st[cur].visited=true;
+  P.sections.forEach(function(s,i){$('tab'+i).classList.toggle('cur',i===q.sec)});
+  $('qNo').textContent='Question '+(cur+1);
+  $('qType').textContent=q.type==='mcq'?'Single Correct (MCQ) · +4 / −1':'Numerical Value · +4 / −1';
+  $('qText').textContent=q.text;
+  var a=st[cur].ans,h='';
+  if(q.type==='mcq'){
+    q.options.forEach(function(o,k){h+='<label class="opt"><input type="radio" name="o" value="'+k+'"'+(a===k?' checked':'')+'><span><b>('+LETTERS[k]+')</b> '+esc(o)+'</span></label>'});
+  }else{
+    h='<div class="num"><input type="text" id="numIn" inputmode="decimal" autocomplete="off" value="'+(a===null?'':esc(a))+'"><div class="keypad">';
+    ['7','8','9','4','5','6','1','2','3','0','.','-'].forEach(function(k){h+='<button type="button" onclick="kp(\''+k+'\')">'+k+'</button>'});
+    h+='<button type="button" onclick="kp(\'bs\')" style="grid-column:span 2">Backspace</button><button type="button" onclick="kp(\'clr\')">Clear</button></div></div>';
+  }
+  $('qBody').innerHTML=h;
+  var n=$('numIn');if(n)n.oninput=function(){n.value=n.value.replace(/[^0-9.\-]/g,'')};
+  $('bBack').disabled=cur===0;$('bNext').disabled=cur===Q.length-1;
+  palette();
+}
+function kp(k){var n=$('numIn');if(k==='bs')n.value=n.value.slice(0,-1);else if(k==='clr')n.value='';else n.value+=k}
+function readInput(){
+  var q=Q[cur];
+  if(q.type==='mcq'){var r=document.querySelector('input[name=o]:checked');return r?+r.value:null}
+  var v=$('numIn').value.trim();return v===''||v==='-'||v==='.'?null:v;
+}
+function act(a){
+  var v=readInput();
+  if(a==='clear'){st[cur].ans=null;st[cur].marked=false;render();persist();return}
+  if(a==='saveNext'||a==='saveMark'){
+    if(v===null){alert('Answer select చేయండి, లేదా Mark for Review & Next వాడండి');return}
+    st[cur].ans=v;st[cur].marked=(a==='saveMark');
+  }
+  if(a==='markNext'){st[cur].marked=true;if(v!==null)st[cur].ans=v}
+  if(cur<Q.length-1)go(cur+1);else{render();persist()}
+}
+function palette(){
+  var q=Q[cur];$('palTitle').textContent=q.secName;
+  var h='';Q.forEach(function(x,i){if(x.sec===q.sec)h+='<div class="p '+status(i)+(i===cur?' cur':'')+'" onclick="go('+i+')">'+(i+1)+'</div>'});
+  $('pal').innerHTML=h;
+  var c={'':0,na:0,an:0,mr:0,am:0};st.forEach(function(x,i){c[status(i)]++});
+  $('counts').innerHTML='<span><span class="p an">'+c.an+'</span>Answered</span><span><span class="p na">'+c.na+'</span>Not Answered</span><span><span class="p">'+c['']+'</span>Not Visited</span><span><span class="p mr">'+c.mr+'</span>Marked</span><span><span class="p am">'+c.am+'</span>Ans &amp; Marked</span>';
+}
+function showSummary(){
+  account();persist();
+  var h='<tr><th>Section</th><th>Total</th><th>Answered</th><th>Not Answered</th><th>Marked</th><th>Not Visited</th></tr>';
+  P.sections.forEach(function(s,si){
+    var t=0,an=0,na=0,mr=0,nv=0;
+    Q.forEach(function(q,i){if(q.sec!==si)return;t++;var x=status(i);if(x==='an'||x==='am')an++;if(x==='na')na++;if(x==='mr'||x==='am')mr++;if(x==='')nv++});
+    h+='<tr><td>'+esc(s.name)+'</td><td>'+t+'</td><td>'+an+'</td><td>'+na+'</td><td>'+mr+'</td><td>'+nv+'</td></tr>';
+  });
+  $('sumTbl').innerHTML=h;show('sSum');
+}
+function backToExam(){show('sExam');qStart=Date.now();render()}
+function buildResult(){
+  var start=ls('jee_start_'+P.day);
+  result={day:P.day,date:P.date||dateOf(P.day),paper:P.title,candidate:cfg().name,
+    startedAt:start,submittedAt:new Date().toISOString(),
+    timeUsedMin:Math.round((P.durationMin*60e3-Math.max(0,endAt-Date.now()))/6e4),durationMin:P.durationMin,
+    answers:Q.map(function(q,i){var a=st[i].ans;return{q:i+1,section:q.secName,type:q.type,
+      answer:a===null?null:(q.type==='mcq'?LETTERS[a]:String(a)),marked:st[i].marked,visited:st[i].visited,timeSec:st[i].t}})};
+}
+function submitExam(auto){
+  if(!auto)account();
+  clearInterval(tick);submitted=true;buildResult();
+  ls('jee_done_'+P.day,true);ls('jee_prog_'+P.day,null);ls('jee_last',result);
+  var qd=ls('jee_queue')||[];qd.push(result);ls('jee_queue',qd);
+  $('doneMeta').textContent=result.paper+' · Time used: '+result.timeUsedMin+' min · Attempted: '+result.answers.filter(function(a){return a.answer!==null}).length+'/'+result.answers.length;
+  $('saveMsg').textContent='నాన్నకి పంపుతోంది...';
+  show('sDone');flushQueue();
+}
+var flushing=false;
+function flushQueue(){
+  var qd=ls('jee_queue')||[];
+  if(!qd.length||flushing||!cfg().token){$('queueMsg').textContent='';return}
+  flushing=true;
+  var r=qd[0],path='results/day'+r.day+'/'+r.submittedAt.replace(/[:.]/g,'-')+'.json';
+  gh('PUT',path,{message:'Day '+r.day+' result',content:b64(JSON.stringify(r,null,2))}).then(function(x){
+    flushing=false;
+    if(x.ok||x.status===422){qd.shift();ls('jee_queue',qd);
+      $('saveMsg').innerHTML='<span class="ok">Answers నాన్నకి చేరాయి ✔ సాయంత్రం 6 గంటలకు report వస్తుంది.</span>';
+      flushQueue();}
+    else fail('HTTP '+x.status);
+  }).catch(function(){flushing=false;fail('internet లేదు')});
+  function fail(why){var m='<span class="warn">ఇంకా పంపలేదు ('+why+'). Internet వచ్చాక దానంతట అదే పంపుతుంది.</span>';$('saveMsg').innerHTML=m;$('queueMsg').innerHTML=m}
+}
+function downloadResult(){
+  var r=result||ls('jee_last');if(!r)return;
+  var b=new Blob([JSON.stringify(r,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='JEE_Day'+r.day+'_'+r.candidate.replace(/[^A-Za-z0-9]+/g,'_')+'.json';document.body.appendChild(a);a.click();a.remove();
+}
+function netInfo(){$('net').textContent=navigator.onLine?'● online':'○ offline'}
+window.addEventListener('online',function(){netInfo();flushQueue()});
+window.addEventListener('offline',netInfo);
+window.addEventListener('beforeunload',function(){if(P&&st.length&&!submitted&&$('sExam').classList.contains('on')){account();persist()}});
+setInterval(flushQueue,120000);
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js');
+$('setName').value=cfg().name||'Teju';
+netInfo();home();
+</script>
+</body>
+</html>
