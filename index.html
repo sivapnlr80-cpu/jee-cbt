@@ -65,6 +65,11 @@ table.t th{color:#555;font-weight:600;background:#fafbfc}
 .banner{background:#fff7e0;border:1px solid #f1c40f;border-radius:6px;padding:10px 14px;margin:10px 0}
 .chips button.cur{background:#1f4e8c;color:#fff}
 svg text{font-family:"Segoe UI",Arial,sans-serif}
+.md h1{color:#1f4e8c;font-size:24px;margin:4px 0 10px}.md h2{color:#1f4e8c;border-bottom:2px solid #e3e6ea;padding-bottom:4px;margin-top:26px}
+.md h3{margin-top:20px}.md table{border-collapse:collapse;margin:10px 0;font-size:14px;display:block;overflow-x:auto}
+.md td,.md th{border:1px solid #d9dee5;padding:6px 9px;vertical-align:top}.md th{background:#eef3fa}
+.md li{margin:3px 0}.md p{margin:8px 0}
+.gen{display:inline-flex;align-items:center;gap:10px;background:#e8f5e9;border:1px solid #2e8b57;border-radius:6px;padding:8px 12px;margin:10px 0}
 </style>
 </head>
 <body>
@@ -95,6 +100,11 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 <div class="screen" id="sRep"><div class="box rbox">
   <div style="display:flex;align-items:center"><h2 style="margin:0;flex:1">Reports &amp; Progress</h2><button onclick="home()">Home</button></div>
   <div id="repBody"><p>Load అవుతోంది...</p></div>
+</div></div>
+
+<div class="screen" id="sDay"><div class="box rbox">
+  <div style="display:flex;gap:6px;justify-content:flex-end"><button onclick="openReports(curDay)">📊 Reports &amp; Progress</button><button onclick="home()">Home</button></div>
+  <div id="dayBody" class="md"></div>
 </div></div>
 
 <div class="screen" id="sInst"><div class="box">
@@ -384,9 +394,9 @@ function avgOf(a,f){var v=a.map(f).filter(function(x){return x!==null&&x!==undef
 function repBanner(){
   if(!cfg().token)return;
   loadSummary().then(function(S){
-    var d=S.days[S.days.length-1];if(!d||d.legacy)return;
+    var d=S.days[S.days.length-1];if(!d)return;
     var p=S.days[S.days.length-2];
-    $('repBanner').innerHTML='<div class="banner">📊 <b>Day '+d.day+' report వచ్చింది:</b> '+d.total+'/'+d.maxMarks+' '+(p?delta(pct(d),pct(p),'%'):'')+' <button onclick="openReports('+d.day+')">చూడండి</button></div>';
+    $('repBanner').innerHTML='<div class="gen">✅ <b>Day '+d.day+' Report generated</b> <span class="muted">'+d.total+'/'+d.maxMarks+'</span> '+(p?delta(pct(d),pct(p),'%'):'')+' <button class="pri" onclick="showDay('+d.day+')">Show</button></div>';
   }).catch(function(){});
 }
 function openReports(day){
@@ -421,9 +431,9 @@ function renderReports(S,day){
     ch.forEach(function(c){h+='<tr><td>'+esc(c.n)+'</td><td><div class="bar"><i style="width:'+c.acc+'%;background:'+(c.acc<60?'#c0392b':c.acc<85?'#e67e22':'#2e8b57')+'"></i></div> '+c.acc+'%</td><td>'+c.t+'</td><td>'+c.w+'</td><td>'+c.s+'</td></tr>'});
     h+='</table>';
   }
-  h+='<h3>Day-wise reports</h3><div class="chips">'+D.map(function(d){return d.legacy?'<button disabled title="పాత app">Day '+d.day+' · '+d.total+'</button>':'<button id="dc'+d.day+'" onclick="dayDetail('+d.day+')">Day '+d.day+' · '+d.total+'</button>'}).join('')+'</div><div id="dayDet"></div>';
+  h+='<h3>Day-wise reports</h3><div class="chips">'+D.map(function(d){return '<button id="dc'+d.day+'" onclick="dayDetail('+d.day+')">Day '+d.day+' · '+d.total+'</button>'}).join('')+'</div><div id="dayDet"></div>';
   $('repBody').innerHTML=h;
-  var pick=day||(L.legacy?null:L.day);if(pick)dayDetail(pick);
+  var pick=day||L.day;if(pick)dayDetail(pick);
 }
 function kpi(v,l,d){return '<div class="kpi"><div class="v">'+v+'</div><div class="l">'+l+'</div><div>'+(d||'')+'</div></div>'}
 function trend(D){
@@ -445,8 +455,9 @@ function trend(D){
 function dayDetail(n){
   document.querySelectorAll('.chips button').forEach(function(b){b.classList.toggle('cur',b.id==='dc'+n)});
   $('dayDet').innerHTML='<p>Load అవుతోంది...</p>';
-  ghRaw('reports/day'+n+'.json').then(function(r){
-    var h='<div class="box" style="margin:12px 0;max-width:none;box-shadow:none;border:1px solid #e3e6ea"><h3 style="margin-top:0">Day '+r.day+' · '+r.date+' · '+r.total+'/'+r.maxMarks+'</h3>';
+  ghRaw('reports/day'+n+'.json').catch(function(){return null}).then(function(r){
+    if(!r){$('dayDet').innerHTML='<p><button class="pri" onclick="showDay('+n+')">📄 Day '+n+' full report చూడండి</button></p>';return}
+    var h='<p><button class="pri" onclick="showDay('+n+')">📄 Day '+n+' full report చూడండి</button></p><div class="box" style="margin:12px 0;max-width:none;box-shadow:none;border:1px solid #e3e6ea"><h3 style="margin-top:0">Day '+r.day+' · '+r.date+' · '+r.total+'/'+r.maxMarks+'</h3>';
     h+='<p>'+r.correct+' correct · '+r.wrong+' wrong · '+r.skipped+' skipped · accuracy '+r.accuracy+'% · time '+r.timeUsedMin+'/'+r.durationMin+' min</p>';
     if(r.note)h+='<p><b>'+esc(r.note)+'</b></p>';
     if(r.actions&&r.actions.length)h+='<h4>రేపటికి చేయాల్సినవి</h4><ol>'+r.actions.map(function(a){return '<li>'+esc(a)+'</li>'}).join('')+'</ol>';
@@ -458,6 +469,48 @@ function dayDetail(n){
     if(r.slow&&r.slow.length)h+='<h4>ఎక్కువ time తీసుకున్నవి (avg '+r.avgSec+'s కంటే 2× ఎక్కువ)</h4><p>'+r.slow.map(function(x){return 'Q'+x.q+' ('+Math.round(x.sec/6)/10+' min, '+esc(x.chapter)+')'}).join(' · ')+'</p>';
     $('dayDet').innerHTML=h+'</div>';
   }).catch(function(){$('dayDet').innerHTML='<p class="warn">ఈ report load కాలేదు.</p>'});
+}
+
+var curDay=null;
+function showDay(n){
+  curDay=n;show('sDay');$('dayBody').innerHTML='<p>Load అవుతోంది...</p>';
+  ghText('reports/day'+n+'.md').then(function(t){$('dayBody').innerHTML=md(t);window.scrollTo(0,0)})
+    .catch(function(){$('dayBody').innerHTML='<p class="warn">Day '+n+' report ఇంకా రాలేదు లేదా internet లేదు.</p>'});
+}
+function ghText(path){
+  return fetch('https://api.github.com/repos/'+CFG.owner+'/'+CFG.repo+'/contents/'+path+'?t='+Date.now(),{headers:{'Authorization':'Bearer '+cfg().token,'Accept':'application/vnd.github.raw+json'}})
+    .then(function(r){if(!r.ok)throw r.status;return r.text()})
+    .then(function(t){ls('jee_c_'+path,t);return t})
+    .catch(function(e){var c=ls('jee_c_'+path);if(c)return c;throw e});
+}
+function mdi(t){
+  t=esc(t).replace(/\\\|/g,'|');
+  return t.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
+}
+function md(src){
+  var L=src.replace(/\r/g,'').split('\n'),o='',i=0,stack=[];
+  function closeLists(lv){while(stack.length>lv){o+='</li></'+stack.pop()+'>'}}
+  function cells(l){return l.trim().replace(/^\||\|$/g,'').split(/(?<!\\)\|/).map(function(c){return c.trim()})}
+  while(i<L.length){
+    var l=L[i];
+    if(/^Doc:\s/.test(l)){i++;continue}
+    var h=l.match(/^(#{1,4})\s+(.*)/);
+    if(h){closeLists(0);o+='<h'+h[1].length+'>'+mdi(h[2])+'</h'+h[1].length+'>';i++;continue}
+    if(/^\s*\|/.test(l)){
+      closeLists(0);var rows=[];while(i<L.length&&/^\s*\|/.test(L[i])){rows.push(L[i]);i++}
+      o+='<table>';rows.forEach(function(r,k){if(k===1&&/^[\s|:\-]+$/.test(r))return;var c=cells(r),tg=k===0?'th':'td';o+='<tr>'+c.map(function(x){return '<'+tg+'>'+mdi(x)+'</'+tg+'>'}).join('')+'</tr>'});o+='</table>';continue;
+    }
+    var m=l.match(/^(\s*)([-*]|\d+\.)\s+(.*)/);
+    if(m){
+      var lv=Math.floor(m[1].length/3)+1,tp=/\d/.test(m[2])?'ol':'ul';
+      if(stack.length<lv){while(stack.length<lv){o+='<'+tp+'>';stack.push(tp)}o+='<li>'}
+      else{closeLists(lv);o+='</li><li>'}
+      o+=mdi(m[3]);i++;continue;
+    }
+    if(!l.trim()){i++;if(stack.length&&i<L.length&&/^\s*([-*]|\d+\.)\s/.test(L[i]))continue;closeLists(0);continue}
+    closeLists(0);o+='<p>'+mdi(l)+'</p>';i++;
+  }
+  closeLists(0);return o;
 }
 function netInfo(){$('net').textContent=navigator.onLine?'● online':'○ offline'}
 window.addEventListener('online',function(){netInfo();flushQueue()});
