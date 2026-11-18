@@ -73,7 +73,7 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 </style>
 </head>
 <body>
-<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v8</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
+<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v9</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
 
 <div class="screen" id="sSetup"><div class="box">
   <h2>మొదటిసారి setup</h2>
@@ -87,6 +87,7 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 <div class="screen" id="sHome"><div class="box">
   <h2 id="homeTitle"></h2>
   <div id="homeBody"></div>
+  <div id="syncBox"></div>
   <div id="repBanner"></div>
   <div id="pending"></div>
   <p><button class="blue" onclick="openReports()">📊 Reports &amp; Progress</button></p>
@@ -202,11 +203,13 @@ function gh(method,path,body){
 function b64(s){return btoa(unescape(encodeURIComponent(s)))}
 
 function loadPaper(n){
+  var local=ls('jee_paper_'+n);
+  if(local&&!navigator.onLine)return Promise.resolve(local);
   return new Promise(function(res,rej){
     window.PAPER=null;
     var s=document.createElement('script');s.src='papers/day'+n+'.js?v='+Date.now();
-    s.onload=function(){s.remove();window.PAPER&&window.PAPER.day==n?res(window.PAPER):rej()};
-    s.onerror=function(){s.remove();rej()};
+    s.onload=function(){s.remove();if(window.PAPER&&window.PAPER.day==n){ls('jee_paper_'+n,window.PAPER);res(window.PAPER)}else if(local)res(local);else rej()};
+    s.onerror=function(){s.remove();local?res(local):rej()};
     document.head.appendChild(s);
   });
 }
@@ -220,10 +223,10 @@ function home(){
   $('homeTitle').textContent='Day '+n+' · '+istDate();
   $('hInfo').textContent=cfg().name;
   show('sHome');
-  oldDays(n);pending(n);repBanner();
+  oldDays(n);pending(n);repBanner();syncStatus();syncReports();
   if(ls('jee_done_'+n)){$('homeBody').innerHTML='<p class="ok"><b>ఈరోజు paper submit అయిపోయింది ✔</b></p><p>సాయంత్రం 6 గంటలకు report నాన్నకి వెళ్తుంది. రేపు ఉదయం కొత్త paper వస్తుంది.</p>';return}
   $('homeBody').innerHTML='<p>ఈరోజు paper load అవుతోంది...</p>';
-  loadPaper(n).then(function(p){ready(p)}).catch(function(){
+  loadPaper(n).then(function(p){ready(p);prefetchPapers()}).catch(function(){
     $('homeBody').innerHTML='<p class="warn">ఈరోజు paper ఇంకా రాలేదు (ఉదయం 4:30 తర్వాత వస్తుంది) లేదా internet లేదు.</p><p class="muted">ప్రతి 5 నిమిషాలకు దానంతట అదే మళ్లీ check చేస్తుంది.</p><button class="blue" onclick="home()">ఇప్పుడే మళ్లీ check చేయండి</button>';
     retryT=setTimeout(home,300000);
   });
@@ -243,7 +246,7 @@ function oldDays(n){
 function pending(n){
   $('pending').innerHTML='';
   var days=[];for(var i=Math.max(1,n-7);i<n;i++)if(!ls('jee_done_'+i))days.push(i);
-  Promise.all(days.map(function(d){return fetch('papers/day'+d+'.js',{method:'HEAD',cache:'no-store'}).then(function(r){return r.ok?d:0}).catch(function(){return 0})}))
+  Promise.all(days.map(function(d){if(ls('jee_paper_'+d))return Promise.resolve(d);return fetch('papers/day'+d+'.js',{method:'HEAD',cache:'no-store'}).then(function(r){return r.ok?d:0}).catch(function(){return 0})}))
   .then(function(a){a=a.filter(Boolean);if(!a.length)return;
     $('pending').innerHTML='<h3 class="warn">పూర్తి చేయాల్సిన పాత papers</h3>'+a.map(function(d){return '<button class="org" onclick="openOld('+d+')">Day '+d+(ls('jee_prog_'+d)?' (continue)':'')+'</button>'}).join('');
   });
@@ -352,23 +355,25 @@ function submitExam(auto){
   ls('jee_done_'+P.day,true);ls('jee_prog_'+P.day,null);ls('jee_last',result);
   var qd=ls('jee_queue')||[];qd.push(result);ls('jee_queue',qd);
   $('doneMeta').textContent=result.paper+' · Time used: '+result.timeUsedMin+' min · Attempted: '+result.answers.filter(function(a){return a.answer!==null}).length+'/'+result.answers.length;
-  $('saveMsg').textContent='నాన్నకి పంపుతోంది...';
+  $('saveMsg').textContent='Upload అవుతోంది...';
   show('sDone');flushQueue();
 }
 var flushing=false;
 function flushQueue(){
   var qd=ls('jee_queue')||[];
-  if(!qd.length||flushing||!cfg().token){$('queueMsg').textContent='';return}
+  if(qd.length&&!navigator.onLine)$('saveMsg').innerHTML='<span class="warn">Internet లేదు. Answers ఈ laptop లో safe గా save అయ్యాయి, net రాగానే దానంతట అదే upload అవుతాయి.</span>';
+  if(!qd.length||flushing||!cfg().token||!navigator.onLine){syncStatus();return}
   flushing=true;
   var r=qd[0],path='results/day'+r.day+'/'+r.submittedAt.replace(/[:.]/g,'-')+'.json';
   gh('PUT',path,{message:'Day '+r.day+' result',content:b64(JSON.stringify(r,null,2))}).then(function(x){
     flushing=false;
     if(x.ok||x.status===422){qd.shift();ls('jee_queue',qd);
-      $('saveMsg').innerHTML='<span class="ok">Answers నాన్నకి చేరాయి ✔ సాయంత్రం 6 గంటలకు report వస్తుంది.</span>';
-      flushQueue();}
+      var up=ls('jee_uploaded')||[];if(up.indexOf(r.day)<0)up.push(r.day);ls('jee_uploaded',up);
+      $('saveMsg').innerHTML='<span class="ok">Answers server కి upload అయ్యాయి ✔ సాయంత్రం 6 తర్వాత report దానంతట అదే వస్తుంది.</span>';
+      syncStatus();flushQueue();}
     else fail('HTTP '+x.status);
   }).catch(function(){flushing=false;fail('internet లేదు')});
-  function fail(why){var m='<span class="warn">ఇంకా పంపలేదు ('+why+'). Internet వచ్చాక దానంతట అదే పంపుతుంది.</span>';$('saveMsg').innerHTML=m;$('queueMsg').innerHTML=m}
+  function fail(why){var m='<span class="warn">Answers ఈ laptop లో safe గా save అయ్యాయి. Internet లేదు ('+why+'), net రాగానే దానంతట అదే upload అవుతుంది.</span>';$('saveMsg').innerHTML=m;syncStatus()}
 }
 function downloadResult(){
   var r=result||ls('jee_last');if(!r)return;
@@ -512,9 +517,39 @@ function md(src){
   }
   closeLists(0);return o;
 }
+
+function syncStatus(){
+  var q=ls('jee_queue')||[],h='';
+  if(!navigator.onLine)h+='<div class="banner">📴 <b>Offline.</b> Paper load అయి ఉంటే exam రాయొచ్చు. Answers ఈ laptop లోనే save అవుతాయి, internet రాగానే దానంతట అదే upload అవుతాయి.</div>';
+  if(q.length)h+='<div class="banner">⏳ <b>Upload కావాల్సినవి:</b> '+q.map(function(r){return 'Day '+r.day}).join(', ')+(navigator.onLine?' — upload అవుతోంది...':' — internet కోసం వేచి ఉంది')+'</div>';
+  if($('syncBox'))$('syncBox').innerHTML=h;
+}
+var syncing=false;
+function syncReports(){
+  if(syncing||!navigator.onLine||!cfg().token)return;
+  syncing=true;
+  loadSummary().then(function(S){
+    var have=ls('jee_seen_reports')||[],jobs=[];
+    S.days.slice(-5).forEach(function(d){
+      jobs.push(ghText('reports/day'+d.day+'.md').catch(function(){}));
+      if(!d.legacy)jobs.push(ghRaw('reports/day'+d.day+'.json').catch(function(){}));
+    });
+    return Promise.all(jobs).then(function(){
+      var last=S.days[S.days.length-1];
+      if(last&&have.indexOf(last.day)<0){have.push(last.day);ls('jee_seen_reports',have);if($('sHome').classList.contains('on'))repBanner()}
+    });
+  }).catch(function(){}).then(function(){syncing=false});
+}
+function prefetchPapers(){
+  if(!navigator.onLine)return;
+  var n=dayOf(istDate());
+  for(var d=Math.max(CFG.first,n-3);d<=n;d++)if(!ls('jee_paper_'+d)&&!ls('jee_done_'+d))(function(d){loadPaper(d).catch(function(){})})(d);
+}
 function netInfo(){$('net').textContent=navigator.onLine?'● online':'○ offline'}
-window.addEventListener('online',function(){netInfo();flushQueue()});
-window.addEventListener('offline',netInfo);
+window.addEventListener('online',function(){netInfo();syncStatus();flushQueue();syncReports();if($('sHome').classList.contains('on'))home()});
+window.addEventListener('offline',function(){netInfo();syncStatus()});
+document.addEventListener('visibilitychange',function(){if(!document.hidden){flushQueue();syncReports()}});
+setInterval(syncReports,600000);
 window.addEventListener('beforeunload',function(){if(P&&st.length&&!submitted&&$('sExam').classList.contains('on')){account();persist()}});
 setInterval(flushQueue,120000);
 if('serviceWorker' in navigator&&location.protocol==='https:'){
