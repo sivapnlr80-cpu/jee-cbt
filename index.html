@@ -69,6 +69,7 @@ table.sum td,table.sum th{border:1px solid #ccc;padding:5px 8px;text-align:cente
 <div class="screen" id="sHome"><div class="box">
   <h2 id="homeTitle"></h2>
   <div id="homeBody"></div>
+  <div id="pending"></div>
   <p id="queueMsg"></p>
   <details style="margin-top:18px"><summary class="muted">పాత papers / settings</summary>
     <div class="days" id="oldDays"></div>
@@ -189,7 +190,7 @@ function home(){
   $('homeTitle').textContent='Day '+n+' · '+istDate();
   $('hInfo').textContent=cfg().name;
   show('sHome');
-  oldDays(n);
+  oldDays(n);pending(n);
   if(ls('jee_done_'+n)){$('homeBody').innerHTML='<p class="ok"><b>ఈరోజు paper submit అయిపోయింది ✔</b></p><p>సాయంత్రం 6 గంటలకు report నాన్నకి వెళ్తుంది. రేపు ఉదయం కొత్త paper వస్తుంది.</p>';return}
   $('homeBody').innerHTML='<p>ఈరోజు paper load అవుతోంది...</p>';
   loadPaper(n).then(function(p){ready(p)}).catch(function(){
@@ -208,6 +209,14 @@ function ready(p){
 function oldDays(n){
   var h='';for(var i=Math.max(1,n-14);i<n;i++){h+='<button onclick="openOld('+i+')"'+(ls('jee_done_'+i)?' disabled title="submitted"':'')+'>Day '+i+'</button>'}
   $('oldDays').innerHTML=h||'<span class="muted">ఇంకా పాత papers లేవు</span>';
+}
+function pending(n){
+  $('pending').innerHTML='';
+  var days=[];for(var i=Math.max(1,n-7);i<n;i++)if(!ls('jee_done_'+i))days.push(i);
+  Promise.all(days.map(function(d){return fetch('papers/day'+d+'.js',{method:'HEAD',cache:'no-store'}).then(function(r){return r.ok?d:0}).catch(function(){return 0})}))
+  .then(function(a){a=a.filter(Boolean);if(!a.length)return;
+    $('pending').innerHTML='<h3 class="warn">పూర్తి చేయాల్సిన పాత papers</h3>'+a.map(function(d){return '<button class="org" onclick="openOld('+d+')">Day '+d+(ls('jee_prog_'+d)?' (continue)':'')+'</button>'}).join('');
+  });
 }
 function openOld(n){loadPaper(n).then(function(p){P=p;openInst()}).catch(function(){alert('Day '+n+' paper దొరకలేదు')})}
 
