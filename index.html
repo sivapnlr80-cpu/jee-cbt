@@ -52,6 +52,19 @@ label.f{display:block;margin:10px 0 3px;font-weight:600}
 table.sum{border-collapse:collapse;width:100%;margin:10px 0}
 table.sum td,table.sum th{border:1px solid #ccc;padding:5px 8px;text-align:center}
 .days{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:12px 0}
+.kpi{background:#f4f7fb;border-radius:6px;padding:10px 12px}
+.kpi .v{font-size:24px;font-weight:700;color:#1f4e8c}.kpi .l{font-size:12px;color:#555}
+.up{color:#2e7d32;font-size:13px;font-weight:600}.dn{color:#c0392b;font-size:13px;font-weight:600}.eq{color:#777;font-size:13px}
+.rbox{max-width:980px}
+table.t{border-collapse:collapse;width:100%;margin:8px 0;font-size:14px}
+table.t td,table.t th{border-bottom:1px solid #e3e6ea;padding:6px 8px;text-align:left}
+table.t th{color:#555;font-weight:600;background:#fafbfc}
+.bar{height:10px;border-radius:5px;background:#e3e6ea;position:relative;min-width:80px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:#1f4e8c}
+.banner{background:#fff7e0;border:1px solid #f1c40f;border-radius:6px;padding:10px 14px;margin:10px 0}
+.chips button.cur{background:#1f4e8c;color:#fff}
+svg text{font-family:"Segoe UI",Arial,sans-serif}
 </style>
 </head>
 <body>
@@ -69,12 +82,19 @@ table.sum td,table.sum th{border:1px solid #ccc;padding:5px 8px;text-align:cente
 <div class="screen" id="sHome"><div class="box">
   <h2 id="homeTitle"></h2>
   <div id="homeBody"></div>
+  <div id="repBanner"></div>
   <div id="pending"></div>
+  <p><button class="blue" onclick="openReports()">📊 Reports &amp; Progress</button></p>
   <p id="queueMsg"></p>
   <details style="margin-top:18px"><summary class="muted">పాత papers / settings</summary>
     <div class="days" id="oldDays"></div>
     <p><button onclick="show('sSetup')">Settings మార్చండి</button></p>
   </details>
+</div></div>
+
+<div class="screen" id="sRep"><div class="box rbox">
+  <div style="display:flex;align-items:center"><h2 style="margin:0;flex:1">Reports &amp; Progress</h2><button onclick="home()">Home</button></div>
+  <div id="repBody"><p>Load అవుతోంది...</p></div>
 </div></div>
 
 <div class="screen" id="sInst"><div class="box">
@@ -190,7 +210,7 @@ function home(){
   $('homeTitle').textContent='Day '+n+' · '+istDate();
   $('hInfo').textContent=cfg().name;
   show('sHome');
-  oldDays(n);pending(n);
+  oldDays(n);pending(n);repBanner();
   if(ls('jee_done_'+n)){$('homeBody').innerHTML='<p class="ok"><b>ఈరోజు paper submit అయిపోయింది ✔</b></p><p>సాయంత్రం 6 గంటలకు report నాన్నకి వెళ్తుంది. రేపు ఉదయం కొత్త paper వస్తుంది.</p>';return}
   $('homeBody').innerHTML='<p>ఈరోజు paper load అవుతోంది...</p>';
   loadPaper(n).then(function(p){ready(p)}).catch(function(){
@@ -344,6 +364,100 @@ function downloadResult(){
   var r=result||ls('jee_last');if(!r)return;
   var b=new Blob([JSON.stringify(r,null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='JEE_Day'+r.day+'_'+r.candidate.replace(/[^A-Za-z0-9]+/g,'_')+'.json';document.body.appendChild(a);a.click();a.remove();
+}
+
+var SUM=null;
+function ghRaw(path){
+  return fetch('https://api.github.com/repos/'+CFG.owner+'/'+CFG.repo+'/contents/'+path+'?t='+Date.now(),{headers:{'Authorization':'Bearer '+cfg().token,'Accept':'application/vnd.github.raw+json'}})
+    .then(function(r){if(!r.ok)throw r.status;return r.json()})
+    .then(function(j){ls('jee_c_'+path,j);return j})
+    .catch(function(e){var c=ls('jee_c_'+path);if(c)return c;throw e});
+}
+function loadSummary(){return ghRaw('reports/summary.json').then(function(j){SUM=j;return j})}
+function pct(d){return d.maxMarks?Math.round(100*d.total/d.maxMarks):0}
+function delta(cur,prev,unit,inv){
+  if(prev===null||prev===undefined||cur===null||cur===undefined)return '<span class="eq">—</span>';
+  var d=cur-prev;if(Math.abs(d)<0.5)return '<span class="eq">= same</span>';
+  var good=inv?d<0:d>0;return '<span class="'+(good?'up':'dn')+'">'+(d>0?'▲ +':'▼ ')+Math.round(d)+(unit||'')+'</span>';
+}
+function avgOf(a,f){var v=a.map(f).filter(function(x){return x!==null&&x!==undefined});return v.length?v.reduce(function(x,y){return x+y},0)/v.length:null}
+function repBanner(){
+  if(!cfg().token)return;
+  loadSummary().then(function(S){
+    var d=S.days[S.days.length-1];if(!d||d.legacy)return;
+    var p=S.days[S.days.length-2];
+    $('repBanner').innerHTML='<div class="banner">📊 <b>Day '+d.day+' report వచ్చింది:</b> '+d.total+'/'+d.maxMarks+' '+(p?delta(pct(d),pct(p),'%'):'')+' <button onclick="openReports('+d.day+')">చూడండి</button></div>';
+  }).catch(function(){});
+}
+function openReports(day){
+  show('sRep');$('repBody').innerHTML='<p>Load అవుతోంది...</p>';
+  loadSummary().then(function(S){renderReports(S,day)}).catch(function(e){
+    $('repBody').innerHTML='<p class="warn">ఇంకా reports లేవు, లేదా internet లేదు. Report రోజూ సాయంత్రం 6 తర్వాత వస్తుంది.</p>';
+  });
+}
+function renderReports(S,day){
+  var D=S.days,L=D[D.length-1],P=D.length>1?D[D.length-2]:null,prevs=D.slice(0,-1);
+  var best=Math.max.apply(null,D.map(pct)),avgP=avgOf(D,pct);
+  var h='<div class="kpis">'+
+    kpi(L.total+'/'+L.maxMarks,'Day '+L.day+' score',P?delta(pct(L),pct(P),'% vs Day '+P.day):'')+
+    kpi(L.accuracy+'%','Accuracy (correct ÷ attempted)',P?delta(L.accuracy,P.accuracy,'%'):'')+
+    kpi(L.attempted+'/'+(L.attempted+L.skipped),'Attempted',P?delta(L.attempted/(L.attempted+L.skipped)*100,P.attempted/(P.attempted+P.skipped)*100,'%'):'')+
+    kpi(L.wrong,'Wrong (−1 each)',P?delta(L.wrong,P.wrong,'',true):'')+
+    kpi(L.avgSec!==null?L.avgSec+'s':'—','Avg time / question',P&&P.avgSec!==null?delta(L.avgSec,P.avgSec,'s',true):'')+
+    kpi(best+'%','Best score',' <span class="eq">avg '+Math.round(avgP)+'%</span>')+
+    kpi(D.length,'Papers done','')+'</div>';
+  h+='<h3>Score trend (%)</h3>'+trend(D);
+  var subs=['Mathematics','Physics','Chemistry'];
+  h+='<h3>Subject-wise</h3><table class="t"><tr><th>Subject</th><th>Day '+L.day+'</th><th>Previous avg</th><th>Change</th><th>Wrong</th><th>Skipped</th><th>Avg sec/Q</th></tr>';
+  subs.forEach(function(n){
+    var c=L.sections[n];if(!c)return;
+    var pa=avgOf(prevs,function(d){return d.sections&&d.sections[n]?d.sections[n].marks:null});
+    h+='<tr><td>'+n+'</td><td><b>'+c.marks+'</b>/'+(4*(c.correct+c.wrong+c.skipped))+'</td><td>'+(pa===null?'—':Math.round(pa))+'</td><td>'+delta(c.marks,pa)+'</td><td>'+c.wrong+'</td><td>'+c.skipped+'</td><td>'+c.avgSec+'</td></tr>';
+  });
+  h+='</table>';
+  var ch=Object.keys(S.chapters||{}).map(function(k){var v=S.chapters[k],t=v.correct+v.wrong+v.skipped;return{n:k,acc:t?Math.round(100*v.correct/t):0,t:t,w:v.wrong,s:v.skipped}}).sort(function(a,b){return a.acc-b.acc});
+  if(ch.length){
+    h+='<h3>Chapter strength (అన్ని papers కలిపి)</h3><table class="t"><tr><th>Chapter</th><th style="width:40%">Correct %</th><th>Qs</th><th>Wrong</th><th>Skipped</th></tr>';
+    ch.forEach(function(c){h+='<tr><td>'+esc(c.n)+'</td><td><div class="bar"><i style="width:'+c.acc+'%;background:'+(c.acc<60?'#c0392b':c.acc<85?'#e67e22':'#2e8b57')+'"></i></div> '+c.acc+'%</td><td>'+c.t+'</td><td>'+c.w+'</td><td>'+c.s+'</td></tr>'});
+    h+='</table>';
+  }
+  h+='<h3>Day-wise reports</h3><div class="chips">'+D.map(function(d){return d.legacy?'<button disabled title="పాత app">Day '+d.day+' · '+d.total+'</button>':'<button id="dc'+d.day+'" onclick="dayDetail('+d.day+')">Day '+d.day+' · '+d.total+'</button>'}).join('')+'</div><div id="dayDet"></div>';
+  $('repBody').innerHTML=h;
+  var pick=day||(L.legacy?null:L.day);if(pick)dayDetail(pick);
+}
+function kpi(v,l,d){return '<div class="kpi"><div class="v">'+v+'</div><div class="l">'+l+'</div><div>'+(d||'')+'</div></div>'}
+function trend(D){
+  var W=900,H=220,pl=40,pr=20,pt=16,pb=30,n=D.length,cols={Mathematics:'#1f77b4',Physics:'#e67e22',Chemistry:'#2e8b57'};
+  var x=function(i){return n<2?pl+(W-pl-pr)/2:pl+i*(W-pl-pr)/(n-1)},y=function(v){return pt+(H-pt-pb)*(1-v/100)};
+  var g='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:'+W+'px">';
+  [0,25,50,75,100].forEach(function(v){g+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#e3e6ea"/><text x="'+(pl-6)+'" y="'+(y(v)+4)+'" font-size="11" fill="#777" text-anchor="end">'+v+'</text>'});
+  Object.keys(cols).forEach(function(s){
+    var pts=D.map(function(d,i){return d.sections&&d.sections[s]?[x(i),y(100*d.sections[s].marks/(4*(d.sections[s].correct+d.sections[s].wrong+d.sections[s].skipped)))]:null}).filter(Boolean);
+    if(pts.length>1)g+='<polyline fill="none" stroke="'+cols[s]+'" stroke-width="1.5" stroke-dasharray="4 3" opacity=".8" points="'+pts.map(function(p){return p.join(',')}).join(' ')+'"/>';
+    pts.forEach(function(p){g+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3" fill="'+cols[s]+'"/>'});
+  });
+  var tp=D.map(function(d,i){return[x(i),y(pct(d))]});
+  if(n>1)g+='<polyline fill="none" stroke="#1f4e8c" stroke-width="3" points="'+tp.map(function(p){return p.join(',')}).join(' ')+'"/>';
+  D.forEach(function(d,i){g+='<circle cx="'+tp[i][0]+'" cy="'+tp[i][1]+'" r="5" fill="#1f4e8c"/><text x="'+tp[i][0]+'" y="'+(tp[i][1]-10)+'" font-size="12" font-weight="700" fill="#1f4e8c" text-anchor="middle">'+pct(d)+'%</text><text x="'+tp[i][0]+'" y="'+(H-10)+'" font-size="12" fill="#555" text-anchor="middle">Day '+d.day+'</text>'});
+  g+='</svg><div class="muted"><b style="color:#1f4e8c">━ Total</b> &nbsp; <span style="color:#1f77b4">┅ Maths</span> &nbsp; <span style="color:#e67e22">┅ Physics</span> &nbsp; <span style="color:#2e8b57">┅ Chemistry</span></div>';
+  return g;
+}
+function dayDetail(n){
+  document.querySelectorAll('.chips button').forEach(function(b){b.classList.toggle('cur',b.id==='dc'+n)});
+  $('dayDet').innerHTML='<p>Load అవుతోంది...</p>';
+  ghRaw('reports/day'+n+'.json').then(function(r){
+    var h='<div class="box" style="margin:12px 0;max-width:none;box-shadow:none;border:1px solid #e3e6ea"><h3 style="margin-top:0">Day '+r.day+' · '+r.date+' · '+r.total+'/'+r.maxMarks+'</h3>';
+    h+='<p>'+r.correct+' correct · '+r.wrong+' wrong · '+r.skipped+' skipped · accuracy '+r.accuracy+'% · time '+r.timeUsedMin+'/'+r.durationMin+' min</p>';
+    if(r.note)h+='<p><b>'+esc(r.note)+'</b></p>';
+    if(r.actions&&r.actions.length)h+='<h4>రేపటికి చేయాల్సినవి</h4><ol>'+r.actions.map(function(a){return '<li>'+esc(a)+'</li>'}).join('')+'</ol>';
+    if(r.mistakes.length){
+      h+='<h4>Mistakes &amp; solutions</h4><table class="t"><tr><th>Q</th><th>Chapter</th><th>నీ answer</th><th>Correct</th><th>Solution</th><th>Time</th></tr>';
+      r.mistakes.forEach(function(m){h+='<tr><td>'+m.q+'</td><td>'+esc(m.chapter)+'</td><td class="'+(m.status==='wrong'?'warn':'muted')+'">'+(m.given===null?'skipped':esc(m.given))+'</td><td class="ok"><b>'+esc(m.correct)+'</b></td><td>'+esc(m.solution)+'</td><td>'+m.timeSec+'s</td></tr>'});
+      h+='</table>';
+    }else h+='<p class="ok"><b>అన్నీ correct! 🎉</b></p>';
+    if(r.slow&&r.slow.length)h+='<h4>ఎక్కువ time తీసుకున్నవి (avg '+r.avgSec+'s కంటే 2× ఎక్కువ)</h4><p>'+r.slow.map(function(x){return 'Q'+x.q+' ('+Math.round(x.sec/6)/10+' min, '+esc(x.chapter)+')'}).join(' · ')+'</p>';
+    $('dayDet').innerHTML=h+'</div>';
+  }).catch(function(){$('dayDet').innerHTML='<p class="warn">ఈ report load కాలేదు.</p>'});
 }
 function netInfo(){$('net').textContent=navigator.onLine?'● online':'○ offline'}
 window.addEventListener('online',function(){netInfo();flushQueue()});
