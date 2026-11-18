@@ -1,6 +1,6 @@
 window.PAPER = {
  "day": 3,
- "date": "2026-11-18",
+ "date": "2026-11-19",
  "title": "JEE Main Daily Practice – Day 3",
  "durationMin": 60,
  "marking": {

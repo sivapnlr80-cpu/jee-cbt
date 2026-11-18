@@ -73,7 +73,7 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 </style>
 </head>
 <body>
-<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v9</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
+<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v10</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
 
 <div class="screen" id="sSetup"><div class="box">
   <h2>మొదటిసారి setup</h2>
@@ -175,7 +175,7 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 </div></div>
 
 <script>
-var CFG={owner:'sivapnlr80-cpu',repo:'jee-results',start:'2026-11-17',first:3};
+var CFG={owner:'sivapnlr80-cpu',repo:'jee-results',start:'2026-11-17',first:3,openFrom:'2026-11-19'};
 var LETTERS=['A','B','C','D'];
 var P=null,Q=[],st=[],cur=0,tick=null,submitted=false,result=null,endAt=0,qStart=0;
 function $(i){return document.getElementById(i)}
@@ -223,6 +223,9 @@ function home(){
   $('homeTitle').textContent='Day '+n+' · '+istDate();
   $('hInfo').textContent=cfg().name;
   show('sHome');
+  if(istDate()<CFG.openFrom){$('oldDays').innerHTML='';$('pending').innerHTML='';repBanner();syncStatus();syncReports();
+    $('homeBody').innerHTML='<p class="warn"><b>Day '+CFG.first+' paper రేపు ('+CFG.openFrom.split('-').reverse().join('-')+') ఉదయం open అవుతుంది.</b></p><p>ఇప్పుడు attempt చేయకూడదు. రేపు Day '+CFG.first+', ఎల్లుండి Day '+(CFG.first+1)+'.</p>';
+    retryT=setTimeout(home,300000);return}
   oldDays(n);pending(n);repBanner();syncStatus();syncReports();
   if(ls('jee_done_'+n)){$('homeBody').innerHTML='<p class="ok"><b>ఈరోజు paper submit అయిపోయింది ✔</b></p><p>సాయంత్రం 6 గంటలకు report నాన్నకి వెళ్తుంది. రేపు ఉదయం కొత్త paper వస్తుంది.</p>';return}
   $('homeBody').innerHTML='<p>ఈరోజు paper load అవుతోంది...</p>';
@@ -251,9 +254,9 @@ function pending(n){
     $('pending').innerHTML='<h3 class="warn">పూర్తి చేయాల్సిన పాత papers</h3>'+a.map(function(d){return '<button class="org" onclick="openOld('+d+')">Day '+d+(ls('jee_prog_'+d)?' (continue)':'')+'</button>'}).join('');
   });
 }
-function openOld(n){loadPaper(n).then(function(p){P=p;openInst()}).catch(function(){alert('Day '+n+' paper దొరకలేదు')})}
+function openOld(n){if(istDate()<CFG.openFrom)return;loadPaper(n).then(function(p){P=p;openInst()}).catch(function(){alert('Day '+n+' paper దొరకలేదు')})}
 
-function openInst(){
+function openInst(){if(istDate()<CFG.openFrom){home();return}
   $('instMeta').textContent=P.title+' · '+P.durationMin+' నిమిషాలు';
   var saved=ls('jee_prog_'+P.day);
   if(saved){$('agree').checked=true;startExam();return}
@@ -263,7 +266,7 @@ function openInst(){
 function build(){
   Q=[];P.sections.forEach(function(s,si){s.questions.forEach(function(q){Q.push({sec:si,secName:s.name,type:q.type,text:q.text,options:q.options||[]})})});
 }
-function startExam(){
+function startExam(){if(istDate()<CFG.openFrom){home();return}
   if(!$('agree').checked){alert('Instructions చదివి tick చేయండి');return}
   build();submitted=false;
   var saved=ls('jee_prog_'+P.day);
@@ -540,7 +543,7 @@ function syncReports(){
     });
   }).catch(function(){}).then(function(){syncing=false});
 }
-function prefetchPapers(){
+function prefetchPapers(){if(istDate()<CFG.openFrom)return;
   if(!navigator.onLine)return;
   var n=dayOf(istDate());
   for(var d=Math.max(CFG.first,n-3);d<=n;d++)if(!ls('jee_paper_'+d)&&!ls('jee_done_'+d))(function(d){loadPaper(d).catch(function(){})})(d);
