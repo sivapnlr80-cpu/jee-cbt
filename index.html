@@ -423,7 +423,8 @@ function renderReports(S,day){
     kpi(L.wrong,'Wrong (−1 each)',P?delta(L.wrong,P.wrong,'',true):'')+
     kpi(L.avgSec!==null?L.avgSec+'s':'—','Avg time / question',P&&P.avgSec!==null?delta(L.avgSec,P.avgSec,'s',true):'')+
     kpi(best+'%','Best score',' <span class="eq">avg '+Math.round(avgP)+'%</span>')+
-    kpi(D.length,'Papers done','')+'</div>';
+    kpi(D.length,'Papers done','')+
+    (L.byDifficulty&&L.byDifficulty.Hard?kpi(L.byDifficulty.Hard.correct+'/'+L.byDifficulty.Hard.total,'Hard questions correct',(L.byDifficulty.Moderate?'<span class="eq">Moderate '+L.byDifficulty.Moderate.correct+'/'+L.byDifficulty.Moderate.total+'</span>':'')):'')+'</div>';
   h+='<h3>Score trend (%)</h3>'+trend(D);
   var subs=['Mathematics','Physics','Chemistry'];
   h+='<h3>Subject-wise</h3><table class="t"><tr><th>Subject</th><th>Day '+L.day+'</th><th>Previous avg</th><th>Change</th><th>Wrong</th><th>Skipped</th><th>Avg sec/Q</th></tr>';
