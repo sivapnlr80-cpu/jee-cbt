@@ -73,7 +73,7 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 </style>
 </head>
 <body>
-<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v10</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
+<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v11</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
 
 <div class="screen" id="sSetup"><div class="box">
   <h2>మొదటిసారి setup</h2>
@@ -239,6 +239,7 @@ function ready(p){
   var nq=p.sections.reduce(function(a,s){return a+s.questions.length},0);
   $('homeBody').innerHTML='<p><b>'+esc(p.title)+'</b></p><p>'+nq+' questions · '+p.durationMin+' నిమిషాలు · '+nq*4+' marks</p>'+
     p.sections.map(function(s){return '<span class="muted">'+esc(s.name)+': '+s.questions.length+'</span>'}).join(' · ')+
+    (nq>=75?'<p class="banner">📝 <b>ఈరోజు Weekly Mock.</b> అసలు JEE Main లాగే 3 గంటలు. 9:00 కి మొదలుపెట్టండి.</p>':'')+
     '<p><button class="pri" onclick="openInst()">'+(saved?'Exam continue చేయండి':'Exam మొదలుపెట్టండి')+'</button></p>';
   P=p;
 }
@@ -257,7 +258,8 @@ function pending(n){
 function openOld(n){if(istDate()<CFG.openFrom)return;loadPaper(n).then(function(p){P=p;openInst()}).catch(function(){alert('Day '+n+' paper దొరకలేదు')})}
 
 function openInst(){if(istDate()<CFG.openFrom){home();return}
-  $('instMeta').textContent=P.title+' · '+P.durationMin+' నిమిషాలు';
+  var nq=P.sections.reduce(function(a,x){return a+x.questions.length},0);
+  $('instMeta').innerHTML=esc(P.title)+' · '+P.durationMin+' నిమిషాలు'+(nq>=75?'<div class="banner">📝 <b>Weekly Mock = అసలు JEE Main లాగే.</b> 75 questions · 3 గంటలు · 300 marks. ప్రతి subject లో Section A: 20 MCQ, Section B: 5 numerical (అన్నీ compulsory, +4 / −1). Order: Chemistry → Physics → Maths. 9:00–12:00 మధ్య రాయండి.</div>':'');
   var saved=ls('jee_prog_'+P.day);
   if(saved){$('agree').checked=true;startExam();return}
   show('sInst');
@@ -295,7 +297,7 @@ function render(){
   var q=Q[cur];st[cur].visited=true;
   P.sections.forEach(function(s,i){$('tab'+i).classList.toggle('cur',i===q.sec)});
   $('qNo').textContent='Question '+(cur+1);
-  $('qType').textContent=q.type==='mcq'?'Single Correct (MCQ) · +4 / −1':'Numerical Value · +4 / −1';
+  $('qType').textContent=(q.type==='mcq'?'Section A · Single Correct (MCQ)':'Section B · Numerical Value')+' · +4 / −1';
   $('qText').textContent=q.text;
   var a=st[cur].ans,h='';
   if(q.type==='mcq'){
