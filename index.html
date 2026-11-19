@@ -70,10 +70,13 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 .md td,.md th{border:1px solid #d9dee5;padding:6px 9px;vertical-align:top}.md th{background:#eef3fa}
 .md li{margin:3px 0}.md p{margin:8px 0}
 .gen{display:inline-flex;align-items:center;gap:10px;background:#e8f5e9;border:1px solid #2e8b57;border-radius:6px;padding:8px 12px;margin:10px 0}
+.focus{border:1px solid #c9d6ea;background:#f6f9fe;border-radius:6px;padding:10px 14px;margin:10px 0}
+.focus h4{margin:0 0 6px;color:#1f4e8c}.st{font-size:12px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.st.weak{background:#fde2e0;color:#b03a2e}.st.improving{background:#fff1d6;color:#a8650b}.st.fixed{background:#dff3e4;color:#23733a}
 </style>
 </head>
 <body>
-<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v11</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
+<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v12</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
 
 <div class="screen" id="sSetup"><div class="box">
   <h2>మొదటిసారి setup</h2>
@@ -89,6 +92,7 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
   <div id="homeBody"></div>
   <div id="syncBox"></div>
   <div id="repBanner"></div>
+  <div id="focusBox"></div>
   <div id="pending"></div>
   <p><button class="blue" onclick="openReports()">📊 Reports &amp; Progress</button></p>
   <p id="queueMsg"></p>
@@ -226,7 +230,7 @@ function home(){
   if(istDate()<CFG.openFrom){$('oldDays').innerHTML='';$('pending').innerHTML='';repBanner();syncStatus();syncReports();
     $('homeBody').innerHTML='<p class="warn"><b>Day '+CFG.first+' paper రేపు ('+CFG.openFrom.split('-').reverse().join('-')+') ఉదయం open అవుతుంది.</b></p><p>ఇప్పుడు attempt చేయకూడదు. రేపు Day '+CFG.first+', ఎల్లుండి Day '+(CFG.first+1)+'.</p>';
     retryT=setTimeout(home,300000);return}
-  oldDays(n);pending(n);repBanner();syncStatus();syncReports();
+  oldDays(n);pending(n);repBanner();focusCard();syncStatus();syncReports();
   if(ls('jee_done_'+n)){$('homeBody').innerHTML='<p class="ok"><b>ఈరోజు paper submit అయిపోయింది ✔</b></p><p>సాయంత్రం 6 గంటలకు report నాన్నకి వెళ్తుంది. రేపు ఉదయం కొత్త paper వస్తుంది.</p>';return}
   $('homeBody').innerHTML='<p>ఈరోజు paper load అవుతోంది...</p>';
   loadPaper(n).then(function(p){ready(p);prefetchPapers()}).catch(function(){
@@ -427,7 +431,7 @@ function renderReports(S,day){
     kpi(best+'%','Best score',' <span class="eq">avg '+Math.round(avgP)+'%</span>')+
     kpi(D.length,'Papers done','')+
     (L.byDifficulty&&L.byDifficulty.Hard?kpi(L.byDifficulty.Hard.correct+'/'+L.byDifficulty.Hard.total,'Hard questions correct',(L.byDifficulty.Moderate?'<span class="eq">Moderate '+L.byDifficulty.Moderate.correct+'/'+L.byDifficulty.Moderate.total+'</span>':'')):'')+'</div>';
-  h+='<h3>Score trend (%)</h3>'+trend(D);
+  h+='<div id="trackBox"></div><h3>Score trend (%)</h3>'+trend(D);
   var subs=['Mathematics','Physics','Chemistry'];
   h+='<h3>Subject-wise</h3><table class="t"><tr><th>Subject</th><th>Day '+L.day+'</th><th>Previous avg</th><th>Change</th><th>Wrong</th><th>Skipped</th><th>Avg sec/Q</th></tr>';
   subs.forEach(function(n){
@@ -444,6 +448,7 @@ function renderReports(S,day){
   }
   h+='<h3>Day-wise reports</h3><div class="chips">'+D.map(function(d){return '<button id="dc'+d.day+'" onclick="dayDetail('+d.day+')">Day '+d.day+' · '+d.total+'</button>'}).join('')+'</div><div id="dayDet"></div>';
   $('repBody').innerHTML=h;
+  loadPlan().then(function(pl){if($('trackBox'))$('trackBox').innerHTML=trackerHtml(pl)}).catch(function(){});
   var pick=day||L.day;if(pick)dayDetail(pick);
 }
 function kpi(v,l,d){return '<div class="kpi"><div class="v">'+v+'</div><div class="l">'+l+'</div><div>'+(d||'')+'</div></div>'}
@@ -535,7 +540,7 @@ function syncReports(){
   if(syncing||!navigator.onLine||!cfg().token)return;
   syncing=true;
   loadSummary().then(function(S){
-    var have=ls('jee_seen_reports')||[],jobs=[];
+    var have=ls('jee_seen_reports')||[],jobs=[loadPlan().catch(function(){})];
     S.days.slice(-5).forEach(function(d){
       jobs.push(ghText('reports/day'+d.day+'.md').catch(function(){}));
       if(!d.legacy)jobs.push(ghRaw('reports/day'+d.day+'.json').catch(function(){}));
@@ -550,6 +555,31 @@ function prefetchPapers(){if(istDate()<CFG.openFrom)return;
   if(!navigator.onLine)return;
   var n=dayOf(istDate());
   for(var d=Math.max(CFG.first,n-3);d<=n;d++)if(!ls('jee_paper_'+d)&&!ls('jee_done_'+d))(function(d){loadPaper(d).catch(function(){})})(d);
+}
+
+var ST={weak:'Weak',improving:'Improving',fixed:'Fixed ✔'};
+function loadPlan(){return ghRaw('plan/current.json')}
+function focusCard(){
+  if(!cfg().token||!$('focusBox'))return;
+  loadPlan().then(function(pl){
+    var it=pl.focus||[],done=it.filter(function(f){return f.status==='fixed'}).length;
+    var h='<div class="focus"><h4>🎯 ఈ వారం focus'+(pl.week?' (Week '+pl.week+')':'')+' — '+done+'/'+it.length+' fixed</h4>';
+    if(pl.message)h+='<div class="muted" style="margin-bottom:6px">'+esc(pl.message)+'</div>';
+    h+=it.map(function(f){return '<div><span class="st '+f.status+'">'+(ST[f.status]||f.status)+'</span> <b>'+esc(f.subject)+'</b> · '+esc(f.chapter)+' <span class="muted">— '+esc(f.target)+'</span></div>'}).join('');
+    $('focusBox').innerHTML=h+'</div>';
+  }).catch(function(){});
+}
+function trackerHtml(pl){
+  var h='<h3>🎯 Weak-spot tracker'+(pl.week?' — Week '+pl.week:'')+'</h3><p class="muted">'+esc(pl.source||'')+(pl.from?' · '+pl.from+' → '+pl.to:'')+'</p>';
+  h+='<table class="t"><tr><th>Status</th><th>Subject</th><th>Chapter / pattern</th><th>ఎందుకు</th><th>Target</th><th>ఈ వారం attempts</th></tr>';
+  (pl.focus||[]).forEach(function(f){
+    var at=(f.attempts||[]).map(function(a){return '<span class="'+(a.status==='correct'?'ok':'warn')+'">D'+a.day+(a.status==='correct'?'✔':'✘')+'</span> '+Math.round(a.sec)+'s'}).join(' · ')||'<span class="muted">ఇంకా లేదు</span>';
+    h+='<tr><td><span class="st '+f.status+'">'+(ST[f.status]||f.status)+'</span></td><td>'+esc(f.subject)+'</td><td>'+esc(f.chapter)+' <span class="muted">'+esc(f.pattern||'')+(f.twist?' · '+esc(f.twist):'')+'</span></td><td>'+esc(f.reason)+'</td><td>'+esc(f.target)+'</td><td>'+at+'</td></tr>';
+  });
+  h+='</table>';
+  var ex=(pl.speed||[]).concat(pl.habits||[]);
+  if(ex.length)h+='<p><b>Speed & habits:</b> '+ex.map(function(x){return esc((x.subject?x.subject+': ':'')+x.what)+' <span class="muted">('+esc(x.target)+')</span>'}).join(' · ')+'</p>';
+  return h;
 }
 function netInfo(){$('net').textContent=navigator.onLine?'● online':'○ offline'}
 window.addEventListener('online',function(){netInfo();syncStatus();flushQueue();syncReports();if($('sHome').classList.contains('on'))home()});
