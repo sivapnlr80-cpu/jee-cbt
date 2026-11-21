@@ -76,7 +76,7 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
 </style>
 </head>
 <body>
-<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v12</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
+<header><b>JEE Main CBT · Teju</b><span id="hInfo"></span><span class="sp"></span><span class="muted" style="color:#9cc3ff">v13</span>&nbsp;<span id="net" class="muted" style="color:#cfe"></span><span id="timer"></span></header>
 
 <div class="screen" id="sSetup"><div class="box">
   <h2>మొదటిసారి setup</h2>
@@ -186,7 +186,9 @@ function $(i){return document.getElementById(i)}
 function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.toggle('on',s.id===id)});$('timer').style.display=id==='sExam'?'inline-block':'none'}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function ls(k,v){try{if(v===undefined){var x=localStorage.getItem(k);return x?JSON.parse(x):null}if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
-function istDate(){return new Date(Date.now()+5.5*3600e3).toISOString().slice(0,10)}
+function istDate(){return new Date(Date.now()+3600e3).toISOString().slice(0,10)}
+function toRoll(){var t=(Date.now()+3600e3)%864e5;return 864e5-t+5e3}
+var rollT=null;
 function dayOf(d){return Math.max(CFG.first,Math.round((Date.parse(d)-Date.parse(CFG.start))/864e5)+1)}
 function dateOf(n){return new Date(Date.parse(CFG.start)+(Math.max(n,CFG.first)-1)*864e5).toISOString().slice(0,10)}
 function cfg(){return ls('jee_cfg')||{}}
@@ -220,7 +222,7 @@ function loadPaper(n){
 
 var retryT=null;
 function home(){
-  clearTimeout(retryT);
+  clearTimeout(retryT);clearTimeout(rollT);rollT=setTimeout(function(){if(!$('sExam').classList.contains('on'))home()},toRoll());
   if(!cfg().token){show('sSetup');return}
   flushQueue();
   var n=dayOf(istDate());
@@ -554,7 +556,7 @@ function syncReports(){
 function prefetchPapers(){if(istDate()<CFG.openFrom)return;
   if(!navigator.onLine)return;
   var n=dayOf(istDate());
-  for(var d=Math.max(CFG.first,n-3);d<=n;d++)if(!ls('jee_paper_'+d)&&!ls('jee_done_'+d))(function(d){loadPaper(d).catch(function(){})})(d);
+  for(var d=Math.max(CFG.first,n-3);d<=n+1;d++)if(!ls('jee_paper_'+d)&&!ls('jee_done_'+d))(function(d){loadPaper(d).catch(function(){})})(d);
 }
 
 var ST={weak:'Weak',improving:'Improving',fixed:'Fixed ✔'};
