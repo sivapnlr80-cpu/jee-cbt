@@ -93,6 +93,7 @@ svg text{font-family:"Segoe UI",Arial,sans-serif}
   <div id="syncBox"></div>
   <div id="repBanner"></div>
   <div id="focusBox"></div>
+  <div id="advBox"></div>
   <div id="pending"></div>
   <p><button class="blue" onclick="openReports()">📊 Reports &amp; Progress</button></p>
   <p id="queueMsg"></p>
@@ -192,6 +193,11 @@ var rollT=null;
 function dayOf(d){return Math.max(CFG.first,Math.round((Date.parse(d)-Date.parse(CFG.start))/864e5)+1)}
 function dateOf(n){return new Date(Date.parse(CFG.start)+(Math.max(n,CFG.first)-1)*864e5).toISOString().slice(0,10)}
 function cfg(){return ls('jee_cfg')||{}}
+function pid(p){return p.id||p.day}
+function isAdv(p){return p&&p.kind==='adv'}
+function maxOf(p){if(p.maxMarks)return p.maxMarks;return p.sections.reduce(function(a,s){return a+s.questions.length},0)*4}
+var ADV0='2026-11-21';
+function advWeek(d){return d<ADV0?0:Math.floor((Date.parse(d)-Date.parse(ADV0))/864e5/7)+1}
 
 function saveSetup(){
   var c={name:$('setName').value.trim()||'Teju',token:$('setTok').value.trim()||cfg().token||''};
@@ -209,12 +215,12 @@ function gh(method,path,body){
 function b64(s){return btoa(unescape(encodeURIComponent(s)))}
 
 function loadPaper(n){
-  var local=ls('jee_paper_'+n);
+  var local=ls('jee_paper_'+n),file=typeof n==='string'?n:'day'+n;
   if(local&&!navigator.onLine)return Promise.resolve(local);
   return new Promise(function(res,rej){
     window.PAPER=null;
-    var s=document.createElement('script');s.src='papers/day'+n+'.js?v='+Date.now();
-    s.onload=function(){s.remove();if(window.PAPER&&window.PAPER.day==n){ls('jee_paper_'+n,window.PAPER);res(window.PAPER)}else if(local)res(local);else rej()};
+    var s=document.createElement('script');s.src='papers/'+file+'.js?v='+Date.now();
+    s.onload=function(){s.remove();if(window.PAPER&&pid(window.PAPER)==n){ls('jee_paper_'+n,window.PAPER);res(window.PAPER)}else if(local)res(local);else rej()};
     s.onerror=function(){s.remove();local?res(local):rej()};
     document.head.appendChild(s);
   });
@@ -232,7 +238,7 @@ function home(){
   if(istDate()<CFG.openFrom){$('oldDays').innerHTML='';$('pending').innerHTML='';repBanner();syncStatus();syncReports();
     $('homeBody').innerHTML='<p class="warn"><b>Day '+CFG.first+' paper రేపు ('+CFG.openFrom.split('-').reverse().join('-')+') ఉదయం open అవుతుంది.</b></p><p>ఇప్పుడు attempt చేయకూడదు. రేపు Day '+CFG.first+', ఎల్లుండి Day '+(CFG.first+1)+'.</p>';
     retryT=setTimeout(home,300000);return}
-  oldDays(n);pending(n);repBanner();focusCard();syncStatus();syncReports();
+  oldDays(n);pending(n);repBanner();focusCard();advCard();syncStatus();syncReports();
   if(ls('jee_done_'+n)){$('homeBody').innerHTML='<p class="ok"><b>ఈరోజు paper submit అయిపోయింది ✔</b></p><p>సాయంత్రం 6 గంటలకు report నాన్నకి వెళ్తుంది. రేపు ఉదయం కొత్త paper వస్తుంది.</p>';return}
   $('homeBody').innerHTML='<p>ఈరోజు paper load అవుతోంది...</p>';
   loadPaper(n).then(function(p){ready(p);prefetchPapers()}).catch(function(){
@@ -241,9 +247,9 @@ function home(){
   });
 }
 function ready(p){
-  var saved=ls('jee_prog_'+p.day);
+  var saved=ls('jee_prog_'+pid(p));
   var nq=p.sections.reduce(function(a,s){return a+s.questions.length},0);
-  $('homeBody').innerHTML='<p><b>'+esc(p.title)+'</b></p><p>'+nq+' questions · '+p.durationMin+' నిమిషాలు · '+nq*4+' marks</p>'+
+  $('homeBody').innerHTML='<p><b>'+esc(p.title)+'</b></p><p>'+nq+' questions · '+p.durationMin+' నిమిషాలు · '+maxOf(p)+' marks</p>'+
     p.sections.map(function(s){return '<span class="muted">'+esc(s.name)+': '+s.questions.length+'</span>'}).join(' · ')+
     (nq>=75?'<p class="banner">📝 <b>ఈరోజు Weekly Mock.</b> అసలు JEE Main లాగే 3 గంటలు. 9:00 కి మొదలుపెట్టండి.</p>':'')+
     '<p><button class="pri" onclick="openInst()">'+(saved?'Exam continue చేయండి':'Exam మొదలుపెట్టండి')+'</button></p>';
@@ -265,8 +271,8 @@ function openOld(n){if(istDate()<CFG.openFrom)return;loadPaper(n).then(function(
 
 function openInst(){if(istDate()<CFG.openFrom){home();return}
   var nq=P.sections.reduce(function(a,x){return a+x.questions.length},0);
-  $('instMeta').innerHTML=esc(P.title)+' · '+P.durationMin+' నిమిషాలు'+(nq>=75?'<div class="banner">📝 <b>Weekly Mock = అసలు JEE Main లాగే.</b> 75 questions · 3 గంటలు · 300 marks. ప్రతి subject లో Section A: 20 MCQ, Section B: 5 numerical (అన్నీ compulsory, +4 / −1). Order: Chemistry → Physics → Maths. 9:00–12:00 మధ్య రాయండి.</div>':'');
-  var saved=ls('jee_prog_'+P.day);
+  $('instMeta').innerHTML=esc(P.title)+' · '+P.durationMin+' నిమిషాలు'+(isAdv(P)?ADVINST:'')+(nq>=75?'<div class="banner">📝 <b>Weekly Mock = అసలు JEE Main లాగే.</b> 75 questions · 3 గంటలు · 300 marks. ప్రతి subject లో Section A: 20 MCQ, Section B: 5 numerical (అన్నీ compulsory, +4 / −1). Order: Chemistry → Physics → Maths. 9:00–12:00 మధ్య రాయండి.</div>':'');
+  var saved=ls('jee_prog_'+pid(P));
   if(saved){$('agree').checked=true;startExam();return}
   show('sInst');
 }
@@ -277,10 +283,10 @@ function build(){
 function startExam(){if(istDate()<CFG.openFrom){home();return}
   if(!$('agree').checked){alert('Instructions చదివి tick చేయండి');return}
   build();submitted=false;
-  var saved=ls('jee_prog_'+P.day);
+  var saved=ls('jee_prog_'+pid(P));
   if(saved&&saved.st.length===Q.length){st=saved.st;cur=saved.cur;endAt=saved.endAt;}
   else{st=Q.map(function(){return{ans:null,marked:false,visited:false,t:0}});cur=0;endAt=Date.now()+P.durationMin*60e3;}
-  ls('jee_start_'+P.day,ls('jee_start_'+P.day)||new Date().toISOString());
+  ls('jee_start_'+pid(P),ls('jee_start_'+pid(P))||new Date().toISOString());
   $('hInfo').textContent=cfg().name+' · '+P.title;
   tabs();show('sExam');qStart=Date.now();render();
   clearInterval(tick);
@@ -291,7 +297,7 @@ function startExam(){if(istDate()<CFG.openFrom){home();return}
   };
   f();tick=setInterval(f,500);
 }
-function persist(){if(P&&!submitted)ls('jee_prog_'+P.day,{st:st,cur:cur,endAt:endAt})}
+function persist(){if(P&&!submitted)ls('jee_prog_'+pid(P),{st:st,cur:cur,endAt:endAt})}
 function account(){var now=Date.now();st[cur].t+=Math.round((now-qStart)/1e3);qStart=now}
 function tabs(){
   $('tabs').innerHTML=P.sections.map(function(s,i){return '<button onclick="goSec('+i+')" id="tab'+i+'">'+esc(s.name)+'</button>'}).join('');
@@ -303,11 +309,14 @@ function render(){
   var q=Q[cur];st[cur].visited=true;
   P.sections.forEach(function(s,i){$('tab'+i).classList.toggle('cur',i===q.sec)});
   $('qNo').textContent='Question '+(cur+1);
-  $('qType').textContent=(q.type==='mcq'?'Section A · Single Correct (MCQ)':'Section B · Numerical Value')+' · +4 / −1';
+  $('qType').textContent=isAdv(P)?({mcq:'Single Correct · +3 / −1',multi:'One or More Correct · +4 (partial +3/+2/+1) / −2',num:'Numerical (2 decimals) · +4 / 0'}[q.type]||''):(q.type==='mcq'?'Section A · Single Correct (MCQ)':'Section B · Numerical Value')+' · +4 / −1';
   $('qText').textContent=q.text;
   var a=st[cur].ans,h='';
   if(q.type==='mcq'){
     q.options.forEach(function(o,k){h+='<label class="opt"><input type="radio" name="o" value="'+k+'"'+(a===k?' checked':'')+'><span><b>('+LETTERS[k]+')</b> '+esc(o)+'</span></label>'});
+  }else if(q.type==='multi'){
+    q.options.forEach(function(o,k){h+='<label class="opt"><input type="checkbox" name="o" value="'+k+'"'+(a&&a.indexOf(k)>=0?' checked':'')+'><span><b>('+LETTERS[k]+')</b> '+esc(o)+'</span></label>'});
+    h+='<p class="muted">ఒకటి కంటే ఎక్కువ correct ఉండొచ్చు. ఖచ్చితంగా తెలిసినవి మాత్రమే tick చేయండి (ఒక wrong option = −2).</p>';
   }else{
     h='<div class="num"><input type="text" id="numIn" inputmode="decimal" autocomplete="off" value="'+(a===null?'':esc(a))+'"><div class="keypad">';
     ['7','8','9','4','5','6','1','2','3','0','.','-'].forEach(function(k){h+='<button type="button" onclick="kp(\''+k+'\')">'+k+'</button>'});
@@ -322,6 +331,7 @@ function kp(k){var n=$('numIn');if(k==='bs')n.value=n.value.slice(0,-1);else if(
 function readInput(){
   var q=Q[cur];
   if(q.type==='mcq'){var r=document.querySelector('input[name=o]:checked');return r?+r.value:null}
+  if(q.type==='multi'){var c=[].slice.call(document.querySelectorAll('input[name=o]:checked')).map(function(x){return +x.value});return c.length?c:null}
   var v=$('numIn').value.trim();return v===''||v==='-'||v==='.'?null:v;
 }
 function act(a){
@@ -353,17 +363,17 @@ function showSummary(){
 }
 function backToExam(){show('sExam');qStart=Date.now();render()}
 function buildResult(){
-  var start=ls('jee_start_'+P.day);
-  result={day:P.day,date:P.date||dateOf(P.day),paper:P.title,candidate:cfg().name,
+  var start=ls('jee_start_'+pid(P));
+  result={day:P.day,id:P.id,kind:P.kind||'main',date:P.date||dateOf(P.day),paper:P.title,candidate:cfg().name,
     startedAt:start,submittedAt:new Date().toISOString(),
     timeUsedMin:Math.round((P.durationMin*60e3-Math.max(0,endAt-Date.now()))/6e4),durationMin:P.durationMin,
     answers:Q.map(function(q,i){var a=st[i].ans;return{q:i+1,section:q.secName,type:q.type,
-      answer:a===null?null:(q.type==='mcq'?LETTERS[a]:String(a)),marked:st[i].marked,visited:st[i].visited,timeSec:st[i].t}})};
+      answer:a===null?null:(q.type==='mcq'?LETTERS[a]:q.type==='multi'?a.slice().sort().map(function(k){return LETTERS[k]}).join(''):String(a)),marked:st[i].marked,visited:st[i].visited,timeSec:st[i].t}})};
 }
 function submitExam(auto){
   if(!auto)account();
   clearInterval(tick);submitted=true;buildResult();
-  ls('jee_done_'+P.day,true);ls('jee_prog_'+P.day,null);ls('jee_last',result);
+  ls('jee_done_'+pid(P),true);ls('jee_prog_'+pid(P),null);ls('jee_last',result);
   var qd=ls('jee_queue')||[];qd.push(result);ls('jee_queue',qd);
   $('doneMeta').textContent=result.paper+' · Time used: '+result.timeUsedMin+' min · Attempted: '+result.answers.filter(function(a){return a.answer!==null}).length+'/'+result.answers.length;
   $('saveMsg').textContent='Upload అవుతోంది...';
@@ -375,11 +385,11 @@ function flushQueue(){
   if(qd.length&&!navigator.onLine)$('saveMsg').innerHTML='<span class="warn">Internet లేదు. Answers ఈ laptop లో safe గా save అయ్యాయి, net రాగానే దానంతట అదే upload అవుతాయి.</span>';
   if(!qd.length||flushing||!cfg().token||!navigator.onLine){syncStatus();return}
   flushing=true;
-  var r=qd[0],path='results/day'+r.day+'/'+r.submittedAt.replace(/[:.]/g,'-')+'.json';
-  gh('PUT',path,{message:'Day '+r.day+' result',content:b64(JSON.stringify(r,null,2))}).then(function(x){
+  var r=qd[0],path='results/'+(r.id||'day'+r.day)+'/'+r.submittedAt.replace(/[:.]/g,'-')+'.json';
+  gh('PUT',path,{message:rlabel(r)+' result',content:b64(JSON.stringify(r,null,2))}).then(function(x){
     flushing=false;
     if(x.ok||x.status===422){qd.shift();ls('jee_queue',qd);
-      var up=ls('jee_uploaded')||[];if(up.indexOf(r.day)<0)up.push(r.day);ls('jee_uploaded',up);
+      var up=ls('jee_uploaded')||[];if(up.indexOf(r.id||r.day)<0)up.push(r.id||r.day);ls('jee_uploaded',up);
       $('saveMsg').innerHTML='<span class="ok">Answers server కి upload అయ్యాయి ✔ సాయంత్రం 6 తర్వాత report దానంతట అదే వస్తుంది.</span>';
       syncStatus();flushQueue();}
     else fail('HTTP '+x.status);
@@ -389,7 +399,7 @@ function flushQueue(){
 function downloadResult(){
   var r=result||ls('jee_last');if(!r)return;
   var b=new Blob([JSON.stringify(r,null,2)],{type:'application/json'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='JEE_Day'+r.day+'_'+r.candidate.replace(/[^A-Za-z0-9]+/g,'_')+'.json';document.body.appendChild(a);a.click();a.remove();
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='JEE_'+(r.id||'Day'+r.day)+'_'+r.candidate.replace(/[^A-Za-z0-9]+/g,'_')+'.json';document.body.appendChild(a);a.click();a.remove();
 }
 
 var SUM=null;
@@ -448,9 +458,10 @@ function renderReports(S,day){
     ch.forEach(function(c){h+='<tr><td>'+esc(c.n)+'</td><td><div class="bar"><i style="width:'+c.acc+'%;background:'+(c.acc<60?'#c0392b':c.acc<85?'#e67e22':'#2e8b57')+'"></i></div> '+c.acc+'%</td><td>'+c.t+'</td><td>'+c.w+'</td><td>'+c.s+'</td></tr>'});
     h+='</table>';
   }
-  h+='<h3>Day-wise reports</h3><div class="chips">'+D.map(function(d){return '<button id="dc'+d.day+'" onclick="dayDetail('+d.day+')">Day '+d.day+' · '+d.total+'</button>'}).join('')+'</div><div id="dayDet"></div>';
+  h+='<div id="advRep"></div><h3>Day-wise reports</h3><div class="chips">'+D.map(function(d){return '<button id="dc'+d.day+'" onclick="dayDetail('+d.day+')">Day '+d.day+' · '+d.total+'</button>'}).join('')+'</div><div id="dayDet"></div>';
   $('repBody').innerHTML=h;
   loadPlan().then(function(pl){if($('trackBox'))$('trackBox').innerHTML=trackerHtml(pl)}).catch(function(){});
+  ghRaw('reports/adv-summary.json').then(function(A){if($('advRep'))$('advRep').innerHTML=advHtml(A)}).catch(function(){});
   var pick=day||L.day;if(pick)dayDetail(pick);
 }
 function kpi(v,l,d){return '<div class="kpi"><div class="v">'+v+'</div><div class="l">'+l+'</div><div>'+(d||'')+'</div></div>'}
@@ -492,8 +503,8 @@ function dayDetail(n){
 var curDay=null;
 function showDay(n){
   curDay=n;show('sDay');$('dayBody').innerHTML='<p>Load అవుతోంది...</p>';
-  ghText('reports/day'+n+'.md').then(function(t){$('dayBody').innerHTML=md(t);window.scrollTo(0,0)})
-    .catch(function(){$('dayBody').innerHTML='<p class="warn">Day '+n+' report ఇంకా రాలేదు లేదా internet లేదు.</p>'});
+  ghText('reports/'+(typeof n==='string'?n:'day'+n)+'.md').then(function(t){$('dayBody').innerHTML=md(t);window.scrollTo(0,0)})
+    .catch(function(){$('dayBody').innerHTML='<p class="warn">'+(typeof n==='string'?'Advanced':'Day '+n)+' report ఇంకా రాలేదు లేదా internet లేదు.</p>'});
 }
 function ghText(path){
   return fetch('https://api.github.com/repos/'+CFG.owner+'/'+CFG.repo+'/contents/'+path+'?t='+Date.now(),{headers:{'Authorization':'Bearer '+cfg().token,'Accept':'application/vnd.github.raw+json'}})
@@ -534,7 +545,7 @@ function md(src){
 function syncStatus(){
   var q=ls('jee_queue')||[],h='';
   if(!navigator.onLine)h+='<div class="banner">📴 <b>Offline.</b> Paper load అయి ఉంటే exam రాయొచ్చు. Answers ఈ laptop లోనే save అవుతాయి, internet రాగానే దానంతట అదే upload అవుతాయి.</div>';
-  if(q.length)h+='<div class="banner">⏳ <b>Upload కావాల్సినవి:</b> '+q.map(function(r){return 'Day '+r.day}).join(', ')+(navigator.onLine?' — upload అవుతోంది...':' — internet కోసం వేచి ఉంది')+'</div>';
+  if(q.length)h+='<div class="banner">⏳ <b>Upload కావాల్సినవి:</b> '+q.map(rlabel).join(', ')+(navigator.onLine?' — upload అవుతోంది...':' — internet కోసం వేచి ఉంది')+'</div>';
   if($('syncBox'))$('syncBox').innerHTML=h;
 }
 var syncing=false;
@@ -582,6 +593,25 @@ function trackerHtml(pl){
   var ex=(pl.speed||[]).concat(pl.habits||[]);
   if(ex.length)h+='<p><b>Speed & habits:</b> '+ex.map(function(x){return esc((x.subject?x.subject+': ':'')+x.what)+' <span class="muted">('+esc(x.target)+')</span>'}).join(' · ')+'</p>';
   return h;
+}
+function rlabel(r){return r.id?'Advanced Week '+String(r.id).replace('adv',''):'Day '+r.day}
+var ADVINST='<div class="banner">🚀 <b>JEE Advanced Practice</b> — Main score లో కలవదు, వేరే ladder. ప్రతి subject: Q1–2 single correct (+3/−1), Q3–4 one or more correct (+4, partial +3/+2/+1, ఏ wrong option tick చేసినా −2), Q5 numerical 2 decimals (+4/0, negative లేదు), Q6 match list (+3/−1). Tough గా ఉంటుంది — 35–40% వచ్చినా మంచి start. ఖచ్చితంగా తెలిసిన options మాత్రమే tick చేయి.</div>';
+function advCard(){
+  if(!cfg().token||!$('advBox'))return;
+  var w=advWeek(istDate());$('advBox').innerHTML='';if(!w)return;
+  var ids=[];for(var k=Math.max(1,w-1);k<=w;k++)ids.push('adv'+k);
+  Promise.all(ids.map(function(id){if(ls('jee_done_'+id))return Promise.resolve(null);return loadPaper(id).catch(function(){return null})}))
+  .then(function(ps){ps=ps.filter(Boolean);if(!ps.length)return;
+    $('advBox').innerHTML=ps.map(function(p){return '<div class="focus" style="border-color:#6c3483"><h4>🚀 '+esc(p.title)+'</h4><div class="muted">'+p.sections.reduce(function(a,s){return a+s.questions.length},0)+' questions · '+p.durationMin+' నిమిషాలు · '+maxOf(p)+' marks · Main score లో కలవదు</div><p><button class="pur" onclick="openAdv(\''+p.id+'\')">'+(ls('jee_prog_'+p.id)?'Advanced continue చేయండి':'Advanced paper మొదలుపెట్టండి')+'</button></p></div>'}).join('');
+  });
+}
+function openAdv(id){loadPaper(id).then(function(p){P=p;openInst()}).catch(function(){alert('Advanced paper దొరకలేదు')})}
+function advHtml(A){
+  if(!A||!A.papers||!A.papers.length)return '';
+  var h='<h3>🚀 JEE Advanced ladder (వేరే track — Main score లో కలవదు)</h3><p>Level '+A.level+' → next paper Level '+A.nextLevel+' · best '+A.best+'%</p><table class="t"><tr><th>Week</th><th>Level</th><th>Score</th><th>%</th><th>Maths</th><th>Physics</th><th>Chemistry</th><th></th></tr>';
+  A.papers.forEach(function(p){var s=function(n){var x=p.sections[n];return x?x.marks+'/'+x.max:'—'};
+    h+='<tr><td>'+p.week+'</td><td>'+p.level+'</td><td><b>'+p.total+'</b>/'+p.maxMarks+'</td><td>'+p.pct+'%</td><td>'+s('Mathematics')+'</td><td>'+s('Physics')+'</td><td>'+s('Chemistry')+'</td><td><button onclick="showDay(\''+p.id+'\')">Report</button></td></tr>'});
+  return h+'</table>';
 }
 function netInfo(){$('net').textContent=navigator.onLine?'● online':'○ offline'}
 window.addEventListener('online',function(){netInfo();syncStatus();flushQueue();syncReports();if($('sHome').classList.contains('on'))home()});
