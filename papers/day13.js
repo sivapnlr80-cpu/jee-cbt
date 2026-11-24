@@ -213,7 +213,7 @@ window.PAPER = {
     },
     {
      "type": "num",
-     "text": "The area (in sq. units) of the region bounded by the curves y = x² − 2x and y = 4 − x² is ______."
+     "text": "Let R = {(x, y) : x² − 2x ≤ y ≤ 4 − x²}. The area of R (in sq. units) is ______."
     },
     {
      "type": "num",
